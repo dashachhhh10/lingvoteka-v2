@@ -5,3 +5,5 @@ allowBuilds:
   '@prisma/engines': true
   esbuild: true
   prisma: true
+minimumReleaseAgeExclude:
+  - pg-boss@12.37.0

@@ -3,6 +3,10 @@ import { AppController } from './app.controller.js';
 import { MaterialsController } from './materials.controller.js';
 import { StudyController } from './study.controller.js';
 import { GrammarController } from './grammar.controller.js';
+import { MaterialQueueService } from './material-queue.js';
 
-@Module({ controllers: [AppController, MaterialsController, StudyController, GrammarController] })
+@Module({
+  controllers: [AppController, MaterialsController, StudyController, GrammarController],
+  providers: [MaterialQueueService],
+})
 export class AppModule {}

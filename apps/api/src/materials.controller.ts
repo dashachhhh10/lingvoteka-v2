@@ -3,11 +3,14 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  Inject,
   NotFoundException,
   Param,
   Post,
   Req,
   Res,
+  ServiceUnavailableException,
   UnauthorizedException,
   UploadedFiles,
   UseGuards,
@@ -23,9 +26,10 @@ import JSZip from 'jszip';
 import { Prisma } from '@prisma/client';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
-import { analyzeMaterial, type Draft } from './material-analysis.js';
+import type { Draft } from './material-analysis.js';
+import { MaterialQueueService } from './material-queue.js';
 import { SessionGuard } from './session.guard.js';
-import { normaliseMeaning, normaliseTerm, vocabularyIdentity } from './vocabulary-identity.js';
+import { normaliseMeaning, normaliseTerm } from './vocabulary-identity.js';
 
 const uploadRoot = resolve(process.env.UPLOAD_DIR ?? './data/uploads');
 const allowedMime = new Set([
@@ -76,6 +80,8 @@ async function validFile(file: Express.Multer.File) {
 @Controller('materials')
 @UseGuards(SessionGuard)
 export class MaterialsController {
+  constructor(@Inject(MaterialQueueService) private readonly materialQueue: MaterialQueueService) {}
+
   private async ownerId(request: Request): Promise<string> {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
     if (!session) throw new UnauthorizedException();
@@ -169,67 +175,33 @@ export class MaterialsController {
   }
 
   @Post(':id/analyze')
+  @HttpCode(202)
   async analyze(@Req() request: Request, @Param('id') id: string) {
     const ownerId = await this.ownerId(request);
     await this.ownedMaterial(id, ownerId);
-    const stale = new Date(Date.now() - 3 * 60_000);
     const claimed = await prisma.material.updateMany({
       where: {
         id,
         ownerId,
-        OR: [
-          { status: { in: ['DRAFT', 'ERROR', 'REVIEW'] } },
-          { status: 'PROCESSING', updatedAt: { lt: stale } },
-        ],
+        status: { in: ['DRAFT', 'ERROR', 'REVIEW'] },
       },
       data: { status: 'PROCESSING', analysisError: null },
     });
     if (!claimed.count) throw new BadRequestException('Материал уже сохранён или разбирается');
     try {
-      const material = await prisma.material.findUniqueOrThrow({
-        where: { id },
-        include: { files: true },
-      });
-      const draft = await analyzeMaterial(material.noteText, material.files);
-      const known = await prisma.vocabItem.findMany({
-        where: {
-          ownerId,
-          normalized: { in: draft.vocabulary.map((item) => normaliseTerm(item.term)) },
-        },
-        select: { normalized: true, normalizedMeaning: true },
-      });
-      const knownTerms = new Set(known.map((item) => item.normalized));
-      const knownIdentities = new Set(
-        known.map((item) => `${item.normalized}\u0000${item.normalizedMeaning}`),
-      );
-      draft.vocabulary = draft.vocabulary.map((item) => {
-        const alreadyInVocabulary = knownIdentities.has(
-          vocabularyIdentity(item.term, item.translation),
-        );
-        return {
-          ...item,
-          alreadyInVocabulary,
-          otherMeaningInVocabulary:
-            !alreadyInVocabulary && knownTerms.has(normaliseTerm(item.term)),
-        };
-      });
-      await prisma.material.update({
-        where: { id },
-        data: { status: 'REVIEW', analysisDraft: draft },
-      });
-      return { status: 'REVIEW', draft };
+      const jobId = await this.materialQueue.enqueue(id);
+      if (!jobId) throw new Error('Queue rejected a duplicate job');
+      return { status: 'PROCESSING' };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось разобрать материал';
-      console.error('Material analysis failed', { materialId: id, message });
-      await prisma.material.update({
-        where: { id },
-        data: { status: 'ERROR', analysisError: message.slice(0, 300) },
+      console.error('Material enqueue failed', { materialId: id, error });
+      await prisma.material.updateMany({
+        where: { id, ownerId, status: 'PROCESSING' },
+        data: {
+          status: 'ERROR',
+          analysisError: 'Не удалось запустить разбор. Попробуй ещё раз.',
+        },
       });
-      throw new BadRequestException(
-        message.startsWith('AI не настроен')
-          ? message
-          : 'Разбор не удался. Попробуй ещё раз или добавь записи вручную.',
-      );
+      throw new ServiceUnavailableException('Не удалось запустить разбор. Попробуй ещё раз.');
     }
   }
 

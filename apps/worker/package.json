@@ -1,0 +1,9 @@
+{
+  "name": "@lingvoteka/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --dir ../api dev:worker",
+    "start": "pnpm --dir ../api start:worker"
+  }
+}

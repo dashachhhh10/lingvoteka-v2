@@ -333,7 +333,7 @@ export function MaterialDetailPage() {
     setPending(true);
     setError('');
     try {
-      const result = await api<{ draft: Draft }>(`/api/materials/${id}/analyze`, {
+      await api<{ status: 'PROCESSING' }>(`/api/materials/${id}/analyze`, {
         method: 'POST',
       });
       try {
@@ -343,11 +343,11 @@ export function MaterialDetailPage() {
       }
       setMaterial((current) =>
         current
-          ? { ...current, status: 'REVIEW', analysisDraft: result.draft, analysisError: null }
+          ? { ...current, status: 'PROCESSING', analysisDraft: null, analysisError: null }
           : current,
       );
-      setVocabulary(result.draft.vocabulary);
-      setGrammar(result.draft.grammar);
+      setVocabulary([]);
+      setGrammar([]);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Разбор не удался');
       setMaterial((current) => (current ? { ...current, status: 'ERROR' } : current));
