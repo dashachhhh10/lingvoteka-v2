@@ -1,0 +1,17 @@
+{
+  "name": "lingvoteka",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @lingvoteka/api --filter @lingvoteka/web dev",
+    "build": "pnpm --recursive build",
+    "typecheck": "pnpm --recursive typecheck",
+    "format": "prettier --write apps/api/src apps/web/src",
+    "format:check": "prettier --check apps/api/src apps/web/src",
+    "db:generate": "pnpm --filter @lingvoteka/api db:generate",
+    "db:migrate": "pnpm --filter @lingvoteka/api db:migrate"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9"
+  }
+}

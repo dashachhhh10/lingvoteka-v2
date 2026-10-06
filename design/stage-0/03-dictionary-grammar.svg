@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2000" viewBox="0 0 1600 2000" role="img" aria-labelledby="title desc">
+  <title id="title">Lingvoteka — словарь и грамматика</title>
+  <desc id="desc">Статические макеты двух экранов в редакционном стиле: список слов с контекстом и теория грамматики с примером упражнения.</desc>
+  <defs>
+    <style>
+      .board { fill:#F7F4EE }
+      .surface { fill:#FFFDFA }
+      .border { stroke:#DED8D1; stroke-width:1.4 }
+      .rule { stroke:#DED8D1; stroke-width:1.2 }
+      .ink { fill:#26232A }
+      .muted { fill:#68636C }
+      .accent { fill:#603A70 }
+      .soft { fill:#EEE5F1 }
+      .sans { font-family:'Golos Text',Arial,sans-serif }
+      .serif { font-family:Lora,Georgia,serif }
+      .tiny { font-size:17px }
+      .small { font-size:19px }
+      .body { font-size:22px }
+      .mid { font-size:25px }
+      .section { font-size:35px }
+      .large { font-size:46px }
+    </style>
+  </defs>
+  <rect class="board" width="1600" height="2000"/>
+  <text x="58" y="68" class="sans tiny muted" letter-spacing="4">LINGVOTEKA  /  ВИЗУАЛЬНАЯ КОНЦЕПЦИЯ</text>
+  <text x="58" y="133" class="serif large ink">Слова с контекстом. Правила с практикой.</text>
+
+  <text x="58" y="194" class="sans body accent">Словарь</text>
+  <rect x="58" y="220" width="1484" height="725" rx="18" class="surface border"/>
+  <line x1="302" y1="220" x2="302" y2="945" class="rule"/>
+  <text x="88" y="272" class="serif section ink">lingvoteka</text>
+  <text x="92" y="346" class="sans small muted">Сегодня</text>
+  <text x="92" y="399" class="sans small muted">Материалы</text>
+  <rect x="76" y="421" width="208" height="52" rx="12" class="soft"/>
+  <text x="92" y="455" class="sans small accent">Словарь</text>
+  <text x="92" y="515" class="sans small muted">Грамматика</text>
+  <line x1="76" y1="861" x2="282" y2="861" class="rule"/>
+  <text x="92" y="906" class="sans small muted">Профиль</text>
+
+  <text x="342" y="300" class="serif large ink">Твои слова</text>
+  <text x="343" y="339" class="sans body muted">Всё, что встретилось на уроках.</text>
+  <rect x="1277" y="263" width="230" height="54" rx="11" class="accent"/>
+  <text x="1305" y="298" class="sans small surface">+ Добавить слово</text>
+
+  <rect x="343" y="383" width="593" height="57" rx="10" fill="#FFFFFF" class="border"/>
+  <circle cx="374" cy="410" r="10" fill="none" stroke="#68636C" stroke-width="2"/>
+  <line x1="381" y1="417" x2="391" y2="427" stroke="#68636C" stroke-width="2"/>
+  <text x="408" y="419" class="sans small muted">Найти слово или перевод</text>
+  <text x="349" y="484" class="sans small accent">Все</text>
+  <text x="425" y="484" class="sans small muted">Новые</text>
+  <text x="524" y="484" class="sans small muted">В повторении</text>
+  <text x="709" y="484" class="sans small muted">Приостановлены</text>
+  <line x1="343" y1="500" x2="936" y2="500" class="rule"/>
+  <text x="350" y="549" class="serif mid ink">il biglietto</text>
+  <text x="350" y="580" class="sans small muted">билет</text>
+  <text x="792" y="563" class="sans tiny muted">Новое</text>
+  <line x1="343" y1="603" x2="936" y2="603" class="rule"/>
+  <rect x="343" y="613" width="593" height="91" rx="10" class="soft"/>
+  <text x="350" y="653" class="serif mid ink">prendere il treno</text>
+  <text x="350" y="682" class="sans small muted">ехать поездом</text>
+  <text x="754" y="663" class="sans tiny accent">В повторении</text>
+  <text x="350" y="749" class="serif mid ink">partire</text>
+  <text x="350" y="780" class="sans small muted">отправляться, уезжать</text>
+  <text x="792" y="762" class="sans tiny muted">Новое</text>
+  <line x1="343" y1="806" x2="936" y2="806" class="rule"/>
+  <text x="350" y="853" class="serif mid ink">la stazione</text>
+  <text x="350" y="884" class="sans small muted">вокзал, станция</text>
+  <text x="754" y="864" class="sans tiny accent">В повторении</text>
+
+  <line x1="963" y1="383" x2="963" y2="912" class="rule"/>
+  <text x="1001" y="407" class="sans tiny muted" letter-spacing="2">ВЫРАЖЕНИЕ</text>
+  <text x="1001" y="463" class="serif section ink">prendere il treno</text>
+  <text x="1001" y="502" class="sans body ink">ехать поездом</text>
+  <line x1="1001" y1="533" x2="1502" y2="533" class="rule"/>
+  <text x="1001" y="575" class="sans tiny muted" letter-spacing="1">ПРИМЕР ИЗ УРОКА</text>
+  <text x="1001" y="619" class="serif mid ink">Domani devo prendere il treno</text>
+  <text x="1001" y="653" class="serif mid ink">per Roma.</text>
+  <text x="1001" y="695" class="sans small muted">Завтра мне нужно ехать поездом в Рим.</text>
+  <text x="1001" y="738" class="sans small accent">На вокзале · страница 1 →</text>
+  <line x1="1001" y1="768" x2="1502" y2="768" class="rule"/>
+  <text x="1001" y="811" class="sans tiny muted" letter-spacing="1">КАРТОЧКИ</text>
+  <text x="1001" y="855" class="sans small ink">Итальянский → русский</text>
+  <rect x="1440" y="834" width="60" height="28" rx="14" class="accent"/>
+  <circle cx="1482" cy="848" r="10" fill="#FFFFFF"/>
+  <text x="1001" y="899" class="sans small ink">Русский → итальянский</text>
+  <rect x="1440" y="878" width="60" height="28" rx="14" fill="#D8D4D1"/>
+  <circle cx="1457" cy="892" r="10" fill="#FFFFFF"/>
+
+  <text x="58" y="1022" class="sans body accent">Грамматика</text>
+  <rect x="58" y="1048" width="1484" height="842" rx="18" class="surface border"/>
+  <line x1="302" y1="1048" x2="302" y2="1890" class="rule"/>
+  <text x="88" y="1101" class="serif section ink">lingvoteka</text>
+  <text x="92" y="1175" class="sans small muted">Сегодня</text>
+  <text x="92" y="1228" class="sans small muted">Материалы</text>
+  <text x="92" y="1281" class="sans small muted">Словарь</text>
+  <rect x="76" y="1305" width="208" height="52" rx="12" class="soft"/>
+  <text x="92" y="1339" class="sans small accent">Грамматика</text>
+  <line x1="76" y1="1805" x2="282" y2="1805" class="rule"/>
+  <text x="92" y="1850" class="sans small muted">Профиль</text>
+
+  <text x="343" y="1104" class="sans small muted">Грамматика / Passato prossimo</text>
+  <text x="343" y="1176" class="serif large ink">Passato prossimo</text>
+  <text x="343" y="1218" class="sans body muted">Как говорить о завершённых событиях</text>
+  <text x="343" y="1265" class="sans tiny muted">Объяснение создано AI</text>
+  <line x1="343" y1="1290" x2="1498" y2="1290" class="rule"/>
+
+  <text x="343" y="1345" class="serif section ink">Когда используется</text>
+  <text x="343" y="1390" class="sans body ink">Для завершённых событий в прошлом.</text>
+  <rect x="343" y="1421" width="531" height="118" rx="12" class="soft"/>
+  <text x="372" y="1482" class="serif section accent">avere / essere</text>
+  <text x="372" y="1517" class="serif mid accent">+ participio passato</text>
+  <text x="343" y="1593" class="serif mid ink">Ho comprato un libro.</text>
+  <text x="343" y="1628" class="sans small muted">Я купила книгу.</text>
+  <line x1="343" y1="1652" x2="874" y2="1652" class="rule"/>
+  <text x="343" y="1698" class="serif mid ink">Sono arrivata a casa.</text>
+  <text x="343" y="1733" class="sans small muted">Я приехала домой.</text>
+  <text x="343" y="1813" class="sans small accent">Частые ошибки →</text>
+
+  <line x1="914" y1="1320" x2="914" y2="1840" class="rule"/>
+  <text x="953" y="1345" class="serif section ink">Попробуй применить</text>
+  <text x="953" y="1401" class="sans tiny muted" letter-spacing="1">ВЫБЕРИ ПРАВИЛЬНУЮ ФОРМУ</text>
+  <text x="953" y="1460" class="serif section ink">Ieri Maria ___ a casa.</text>
+  <rect x="953" y="1492" width="545" height="64" rx="10" fill="#EEE5F1" stroke="#603A70" stroke-width="2"/>
+  <circle cx="987" cy="1524" r="12" fill="none" stroke="#603A70" stroke-width="2"/>
+  <circle cx="987" cy="1524" r="6" class="accent"/>
+  <text x="1017" y="1532" class="sans body ink">è tornata</text>
+  <rect x="953" y="1569" width="545" height="64" rx="10" fill="#FFFFFF" class="border"/>
+  <circle cx="987" cy="1601" r="12" fill="none" stroke="#68636C" stroke-width="2"/>
+  <text x="1017" y="1609" class="sans body ink">ha tornato</text>
+  <rect x="953" y="1646" width="545" height="64" rx="10" fill="#FFFFFF" class="border"/>
+  <circle cx="987" cy="1678" r="12" fill="none" stroke="#68636C" stroke-width="2"/>
+  <text x="1017" y="1686" class="sans body ink">torna</text>
+  <rect x="953" y="1740" width="545" height="62" rx="11" class="accent"/>
+  <text x="1168" y="1780" class="sans body surface">Проверить</text>
+
+  <line x1="58" y1="1932" x2="1542" y2="1932" class="rule"/>
+  <text x="58" y="1970" class="sans small muted">Концепция: в приложении теория и практика открываются отдельными вкладками.</text>
+</svg>

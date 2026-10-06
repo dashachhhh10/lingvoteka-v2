@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  theme         String    @default("system")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  materials     Material[]
+  vocabItems    VocabItem[]
+  grammarTopics GrammarTopic[]
+  reviewStates  ReviewState[]
+  exerciseAttempts ExerciseAttempt[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Material {
+  id            String            @id @default(cuid())
+  ownerId       String
+  owner         User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title         String
+  lessonDate    DateTime?
+  deadline      DateTime?
+  noteText      String?
+  status        String            @default("DRAFT")
+  analysisDraft Json?
+  analysisError String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  files         MaterialFile[]
+  vocabulary    MaterialVocab[]
+  grammar       MaterialGrammar[]
+
+  @@index([ownerId, createdAt])
+}
+
+model MaterialFile {
+  id         String   @id @default(cuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  name       String
+  mimeType   String
+  byteSize   Int
+  storageKey String
+  createdAt  DateTime @default(now())
+}
+
+model VocabItem {
+  id                String          @id @default(cuid())
+  ownerId           String
+  owner             User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  term              String
+  normalized        String
+  translation       String
+  normalizedMeaning String
+  example           String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  materials         MaterialVocab[]
+  reviewStates      ReviewState[]
+
+  @@unique([ownerId, normalized, normalizedMeaning])
+  @@index([ownerId, normalized])
+}
+
+model GrammarTopic {
+  id         String            @id @default(cuid())
+  ownerId    String
+  owner      User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title      String
+  normalized String
+  summary    String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  materials  MaterialGrammar[]
+  theory     Json?
+  theoryStatus String @default("NOT_GENERATED")
+  theoryError String?
+  exercises  GrammarExercise[]
+
+  @@unique([ownerId, normalized])
+}
+
+model MaterialVocab {
+  materialId   String
+  vocabItemId  String
+  sourceExcerpt String?
+  material     Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  vocabItem    VocabItem @relation(fields: [vocabItemId], references: [id], onDelete: Cascade)
+
+  @@id([materialId, vocabItemId])
+}
+
+model MaterialGrammar {
+  materialId     String
+  grammarTopicId String
+  sourceExcerpt  String?
+  material       Material     @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  grammarTopic   GrammarTopic @relation(fields: [grammarTopicId], references: [id], onDelete: Cascade)
+
+  @@id([materialId, grammarTopicId])
+}
+
+model ReviewState {
+  id             String        @id @default(cuid())
+  userId         String
+  vocabItemId    String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vocabItem      VocabItem     @relation(fields: [vocabItemId], references: [id], onDelete: Cascade)
+  card           Json
+  due            DateTime
+  introducedAt   DateTime      @default(now())
+  lastReviewedAt DateTime      @default(now())
+  events         ReviewEvent[]
+
+  @@unique([userId, vocabItemId])
+  @@index([userId, due])
+}
+
+model ReviewEvent {
+  id            String      @id @default(cuid())
+  reviewStateId String
+  reviewState   ReviewState @relation(fields: [reviewStateId], references: [id], onDelete: Cascade)
+  rating        Int
+  reviewedAt    DateTime    @default(now())
+  log           Json
+
+  @@index([reviewStateId, reviewedAt])
+}
+
+model GrammarExercise {
+  id          String             @id @default(cuid())
+  topicId     String
+  topic       GrammarTopic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  position    Int
+  prompt      String
+  options     Json
+  answerIndex Int
+  explanation String
+  attempts    ExerciseAttempt[]
+
+  @@unique([topicId, position])
+}
+
+model ExerciseAttempt {
+  id          String          @id @default(cuid())
+  userId      String
+  exerciseId  String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise    GrammarExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  answerIndex Int
+  correct     Boolean
+  createdAt   DateTime        @default(now())
+
+  @@index([userId, createdAt])
+}
