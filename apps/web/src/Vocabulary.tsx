@@ -8,6 +8,9 @@ type VocabItem = {
   term: string;
   translation: string;
   example: string | null;
+  partOfSpeech: string | null;
+  semanticTopic: string | null;
+  categoryStatus: 'PENDING' | 'READY' | 'ERROR' | 'AWAITING_APPROVAL';
   reviewStates: { due: string; lastReviewedAt: string }[];
   materials: { material: { id: string; title: string; createdAt: string } }[];
 };
@@ -25,6 +28,7 @@ const wordCount = (count: number) =>
 export function VocabularyPage() {
   const [items, setItems] = useState<VocabItem[]>([]);
   const [query, setQuery] = useState('');
+  const [groupBy, setGroupBy] = useState<'semanticTopic' | 'partOfSpeech'>('semanticTopic');
   const [topic, setTopic] = useState('all');
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(() => new Set());
   const [showAdd, setShowAdd] = useState(false);
@@ -40,6 +44,23 @@ export function VocabularyPage() {
       .catch((reason: Error) => setError(reason.message))
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    if (!items.some((item) => item.categoryStatus === 'PENDING')) return;
+    const interval = window.setInterval(() => {
+      void api<VocabItem[]>('/api/vocabulary')
+        .then(setItems)
+        .catch(() => undefined);
+    }, 5_000);
+    return () => window.clearInterval(interval);
+  }, [items]);
+  const categoryOf = (item: VocabItem) =>
+    item.categoryStatus === 'ERROR'
+      ? 'Не удалось определить'
+      : item.categoryStatus === 'AWAITING_APPROVAL'
+        ? 'Пока без категории'
+        : item.categoryStatus === 'PENDING'
+          ? 'Определяем тему…'
+          : (item[groupBy] ?? 'Другое');
   const shown = useMemo(
     () =>
       items.filter((item) =>
@@ -48,46 +69,22 @@ export function VocabularyPage() {
     [items, query],
   );
   const groups = useMemo(() => {
-    const byTopic = new Map<
-      string,
-      { id: string; title: string; createdAt: string; items: VocabItem[] }
-    >();
+    const byTopic = new Map<string, VocabItem[]>();
     for (const item of shown) {
-      const sources = item.materials.length
-        ? item.materials.map(({ material }) => material)
-        : [{ id: 'manual', title: 'Без темы', createdAt: '' }];
-      for (const source of sources) {
-        const group = byTopic.get(source.id) ?? {
-          id: source.id,
-          title: source.title,
-          createdAt: source.createdAt,
-          items: [],
-        };
-        group.items.push(item);
-        byTopic.set(source.id, group);
-      }
+      const category = categoryOf(item);
+      byTopic.set(category, [...(byTopic.get(category) ?? []), item]);
     }
-    return [...byTopic.values()]
-      .filter((group) => topic === 'all' || group.id === topic)
-      .sort((a, b) => {
-        if (a.id === 'manual') return 1;
-        if (b.id === 'manual') return -1;
-        return b.createdAt.localeCompare(a.createdAt);
-      });
-  }, [shown, topic]);
+    return [...byTopic.entries()]
+      .filter(([name]) => topic === 'all' || name === topic)
+      .sort(([a], [b]) => a.localeCompare(b, 'ru'))
+      .map(([name, words]) => ({ id: name, title: name, items: words }));
+  }, [shown, topic, groupBy]);
   const topics = useMemo(() => {
-    const byTopic = new Map<string, { id: string; title: string; createdAt: string }>();
-    for (const item of items) {
-      if (!item.materials.length)
-        byTopic.set('manual', { id: 'manual', title: 'Без темы', createdAt: '' });
-      for (const { material } of item.materials) byTopic.set(material.id, material);
-    }
-    return [...byTopic.values()].sort((a, b) => {
-      if (a.id === 'manual') return 1;
-      if (b.id === 'manual') return -1;
-      return b.createdAt.localeCompare(a.createdAt);
-    });
-  }, [items]);
+    return [...new Set(items.map(categoryOf))].sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [items, groupBy]);
+  useEffect(() => {
+    if (topic !== 'all' && !topics.includes(topic)) setTopic('all');
+  }, [topic, topics]);
   function toggleTopic(id: string) {
     setExpandedTopics((current) => {
       const next = new Set(current);
@@ -117,13 +114,24 @@ export function VocabularyPage() {
       setPending(false);
     }
   }
+  async function classifyExistingCategories() {
+    setError('');
+    try {
+      await api('/api/vocabulary/categories/classify', { method: 'POST' });
+      setItems(await api<VocabItem[]>('/api/vocabulary'));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Не удалось запустить определение тем');
+    }
+  }
   return (
     <>
       <div className="page-heading">
         <div>
           <p className="eyebrow">ПРАКТИКА</p>
           <h1 className="page-title">Словарь</h1>
-          <p className="page-lead">Слова из твоих уроков и записи, добавленные вручную.</p>
+          <p className="page-lead">
+            Слова автоматически распределяются по лексическим темам и частям речи.
+          </p>
         </div>
         <Link className="action-link" to="/review">
           Повторять карточки <span aria-hidden="true">↗</span>
@@ -145,21 +153,48 @@ export function VocabularyPage() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <label className="visually-hidden" htmlFor="vocab-topic">
-          Тема словаря
-        </label>
-        <select id="vocab-topic" value={topic} onChange={(event) => setTopic(event.target.value)}>
-          <option value="all">Все темы</option>
-          {topics.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.title}
-            </option>
-          ))}
-        </select>
         <button className="secondary-button" type="button" onClick={() => setShowAdd(!showAdd)}>
           {showAdd ? 'Закрыть' : '+ Добавить вручную'}
         </button>
       </div>
+      <div className="vocab-filters">
+        <label htmlFor="vocab-group-by">Группировать</label>
+        <select
+          id="vocab-group-by"
+          value={groupBy}
+          onChange={(event) => {
+            setGroupBy(event.target.value as 'semanticTopic' | 'partOfSpeech');
+            setTopic('all');
+            setExpandedTopics(new Set());
+          }}
+        >
+          <option value="semanticTopic">По темам</option>
+          <option value="partOfSpeech">По частям речи</option>
+        </select>
+        <label className="visually-hidden" htmlFor="vocab-topic">
+          Выбрать группу
+        </label>
+        <select id="vocab-topic" value={topic} onChange={(event) => setTopic(event.target.value)}>
+          <option value="all">{groupBy === 'semanticTopic' ? 'Все темы' : 'Все части речи'}</option>
+          {topics.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+        {items.some((item) => ['AWAITING_APPROVAL', 'ERROR'].includes(item.categoryStatus)) && (
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => void classifyExistingCategories()}
+          >
+            Определить темы для слов без категории
+          </button>
+        )}
+      </div>
+      {items.some((item) => item.categoryStatus === 'AWAITING_APPROVAL') && (
+        <p className="vocab-ai-note">При определении тем слова и переводы отправляются Gemini.</p>
+      )}
       {showAdd && (
         <form className="vocab-add" onSubmit={(event) => void add(event)}>
           <div className="form-columns">

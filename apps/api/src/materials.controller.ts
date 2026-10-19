@@ -18,6 +18,20 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { fromNodeHeaders } from 'better-auth/node';
+import {
+  ApiAcceptedResponse,
+  ApiBadRequestResponse,
+  ApiBody,
+  ApiConsumes,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import JSZip from 'jszip';
 import { Prisma } from '@prisma/client';
@@ -26,9 +40,17 @@ import { prisma } from './database.js';
 import { loadFile, removeFile, storeFile } from './file-storage.js';
 import type { Draft } from './material-analysis.js';
 import { MaterialQueueService } from './material-queue.js';
+import {
+  MaterialAnalysisResponseDto,
+  MaterialCreatedDto,
+  MaterialDetailDto,
+  MaterialDraftDto,
+  MaterialSummaryDto,
+} from './openapi.dto.js';
 import { SessionGuard } from './session.guard.js';
 import { titleFromFileName, uploadedFileName } from './uploaded-file-name.js';
 import { normaliseMeaning, normaliseTerm } from './vocabulary-identity.js';
+import { isPartOfSpeech, isSemanticTopic, validCategories } from './vocabulary-categories.js';
 
 const allowedMime = new Set([
   'application/pdf',
@@ -77,6 +99,9 @@ async function validFile(file: Express.Multer.File) {
 
 @Controller('materials')
 @UseGuards(SessionGuard)
+@ApiTags('Материалы')
+@ApiCookieAuth('sessionCookie')
+@ApiUnauthorizedResponse({ description: 'Сессия отсутствует или истекла' })
 export class MaterialsController {
   constructor(@Inject(MaterialQueueService) private readonly materialQueue: MaterialQueueService) {}
 
@@ -100,6 +125,8 @@ export class MaterialsController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Получить свои материалы' })
+  @ApiOkResponse({ type: [MaterialSummaryDto] })
   async list(@Req() request: Request) {
     const ownerId = await this.ownerId(request);
     return prisma.material.findMany({
@@ -119,11 +146,37 @@ export class MaterialsController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Получить материал и черновик AI-разбора' })
+  @ApiParam({ name: 'id', description: 'ID материала' })
+  @ApiOkResponse({ type: MaterialDetailDto })
+  @ApiNotFoundResponse({ description: 'Материал не принадлежит текущему пользователю' })
   async detail(@Req() request: Request, @Param('id') id: string) {
     return this.ownedMaterial(id, await this.ownerId(request));
   }
 
   @Post()
+  @ApiOperation({ summary: 'Загрузить текст и/или до пяти файлов урока' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          maxLength: 160,
+          description: 'Если не указано, берётся имя первого файла без расширения',
+        },
+        noteText: { type: 'string', maxLength: 80000 },
+        lessonDate: { type: 'string', format: 'date' },
+        deadline: { type: 'string', format: 'date' },
+        files: { type: 'array', maxItems: 5, items: { type: 'string', format: 'binary' } },
+      },
+    },
+  })
+  @ApiCreatedResponse({ type: MaterialCreatedDto })
+  @ApiBadRequestResponse({
+    description: 'Нет текста/файлов, неверная дата или неподдерживаемый файл',
+  })
   @UseInterceptors(
     FilesInterceptor('files', 5, { limits: { fileSize: 10 * 1024 * 1024, files: 5, fields: 4 } }),
   )
@@ -177,6 +230,9 @@ export class MaterialsController {
 
   @Post(':id/analyze')
   @HttpCode(202)
+  @ApiOperation({ summary: 'Запустить фоновый AI-разбор материала' })
+  @ApiParam({ name: 'id', description: 'ID материала' })
+  @ApiAcceptedResponse({ type: MaterialAnalysisResponseDto })
   async analyze(@Req() request: Request, @Param('id') id: string) {
     const ownerId = await this.ownerId(request);
     await this.ownedMaterial(id, ownerId);
@@ -207,6 +263,13 @@ export class MaterialsController {
   }
 
   @Post(':id/review')
+  @ApiOperation({ summary: 'Сохранить проверенные слова и темы материала' })
+  @ApiParam({ name: 'id', description: 'ID материала' })
+  @ApiBody({ type: MaterialDraftDto })
+  @ApiCreatedResponse({ type: MaterialDetailDto })
+  @ApiBadRequestResponse({
+    description: 'Черновик имеет неверный формат или материал ещё обрабатывается',
+  })
   async review(@Req() request: Request, @Param('id') id: string, @Body() body: Draft) {
     const ownerId = await this.ownerId(request);
     const material = await this.ownedMaterial(id, ownerId);
@@ -227,6 +290,8 @@ export class MaterialsController {
       example: typeof item.example === 'string' ? item.example.trim().slice(0, 500) : '',
       sourceExcerpt:
         typeof item.sourceExcerpt === 'string' ? item.sourceExcerpt.trim().slice(0, 500) : '',
+      partOfSpeech: typeof item.partOfSpeech === 'string' ? item.partOfSpeech : '',
+      semanticTopic: typeof item.semanticTopic === 'string' ? item.semanticTopic : '',
     }));
     const grammar = body.grammar.map((item) => ({
       title: typeof item.title === 'string' ? item.title.trim().slice(0, 160) : '',
@@ -242,6 +307,9 @@ export class MaterialsController {
     }
     await prisma.$transaction(async (tx) => {
       for (const item of vocabulary) {
+        const partOfSpeech = isPartOfSpeech(item.partOfSpeech) ? item.partOfSpeech : null;
+        const semanticTopic = isSemanticTopic(item.semanticTopic) ? item.semanticTopic : null;
+        const categorized = validCategories(partOfSpeech, semanticTopic);
         const vocab = await tx.vocabItem.upsert({
           where: {
             ownerId_normalized_normalizedMeaning: {
@@ -257,9 +325,26 @@ export class MaterialsController {
             term: item.term,
             translation: item.translation,
             example: item.example || null,
+            partOfSpeech,
+            semanticTopic,
+            categoryStatus: categorized ? 'READY' : 'PENDING',
           },
           update: {},
         });
+        if (partOfSpeech || semanticTopic) {
+          const nextPartOfSpeech = partOfSpeech ?? vocab.partOfSpeech;
+          const nextSemanticTopic = semanticTopic ?? vocab.semanticTopic;
+          await tx.vocabItem.updateMany({
+            where: { id: vocab.id, ownerId },
+            data: {
+              partOfSpeech: nextPartOfSpeech,
+              semanticTopic: nextSemanticTopic,
+              categoryStatus: validCategories(nextPartOfSpeech, nextSemanticTopic)
+                ? 'READY'
+                : 'PENDING',
+            },
+          });
+        }
         await tx.materialVocab.upsert({
           where: { materialId_vocabItemId: { materialId: id, vocabItemId: vocab.id } },
           create: {
@@ -300,6 +385,13 @@ export class MaterialsController {
   }
 
   @Get(':id/files/:fileId')
+  @ApiOperation({ summary: 'Скачать свой исходный файл' })
+  @ApiParam({ name: 'id', description: 'ID материала' })
+  @ApiParam({ name: 'fileId', description: 'ID файла' })
+  @ApiOkResponse({
+    content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } },
+  })
+  @ApiNotFoundResponse({ description: 'Файл не принадлежит текущему пользователю' })
   async download(
     @Req() request: Request,
     @Res() response: Response,

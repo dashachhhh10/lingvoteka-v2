@@ -13,9 +13,31 @@ import { fromNodeHeaders } from 'better-auth/node';
 import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { createEmptyCard, fsrs, Rating, type Card } from 'ts-fsrs';
+import {
+  ApiBadRequestResponse,
+  ApiBody,
+  ApiConflictResponse,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
 import { normaliseMeaning, normaliseTerm } from './vocabulary-identity.js';
+import {
+  AddVocabularyDto,
+  CategoryQueueDto,
+  RatingInputDto,
+  ReviewQueueDto,
+  ReviewResultDto,
+  VocabItemDto,
+  VocabularyListItemDto,
+} from './openapi.dto.js';
 
 const scheduler = fsrs({ enable_fuzz: false });
 const NEW_PER_DAY = 10;
@@ -39,6 +61,9 @@ function parseCard(value: Prisma.JsonValue): Card {
 }
 
 @Controller()
+@ApiTags('Словарь и повторение')
+@ApiCookieAuth('sessionCookie')
+@ApiUnauthorizedResponse({ description: 'Сессия отсутствует или истекла' })
 export class StudyController {
   private async userId(request: Request) {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
@@ -47,6 +72,8 @@ export class StudyController {
   }
 
   @Get('vocabulary')
+  @ApiOperation({ summary: 'Получить слова с источниками и состоянием повторения' })
+  @ApiOkResponse({ type: [VocabularyListItemDto] })
   async vocabulary(@Req() request: Request) {
     const ownerId = await this.userId(request);
     return prisma.vocabItem.findMany({
@@ -57,6 +84,9 @@ export class StudyController {
         term: true,
         translation: true,
         example: true,
+        partOfSpeech: true,
+        semanticTopic: true,
+        categoryStatus: true,
         createdAt: true,
         reviewStates: { where: { userId: ownerId }, select: { due: true, lastReviewedAt: true } },
         materials: {
@@ -68,7 +98,26 @@ export class StudyController {
     });
   }
 
+  @Post('vocabulary/categories/classify')
+  @ApiOperation({
+    summary: 'Запустить определение тем для ранее сохранённых слов после действия пользователя',
+  })
+  @ApiCreatedResponse({ type: CategoryQueueDto })
+  async classifyExistingCategories(@Req() request: Request) {
+    const ownerId = await this.userId(request);
+    const result = await prisma.vocabItem.updateMany({
+      where: { ownerId, categoryStatus: { in: ['AWAITING_APPROVAL', 'ERROR'] } },
+      data: { categoryStatus: 'PENDING' },
+    });
+    return { queued: result.count };
+  }
+
   @Post('vocabulary')
+  @ApiOperation({ summary: 'Добавить слово вручную' })
+  @ApiBody({ type: AddVocabularyDto })
+  @ApiCreatedResponse({ type: VocabItemDto })
+  @ApiBadRequestResponse({ description: 'Слово или перевод не указаны' })
+  @ApiConflictResponse({ description: 'Такое значение слова уже есть в словаре' })
   async addVocabulary(
     @Req() request: Request,
     @Body() body: { term?: unknown; translation?: unknown; example?: unknown },
@@ -103,6 +152,8 @@ export class StudyController {
   }
 
   @Get('reviews/queue')
+  @ApiOperation({ summary: 'Получить очередь новых и просроченных карточек' })
+  @ApiOkResponse({ type: ReviewQueueDto })
   async queue(@Req() request: Request) {
     const userId = await this.userId(request);
     const now = new Date();
@@ -139,6 +190,12 @@ export class StudyController {
   }
 
   @Post('reviews/:vocabId')
+  @ApiOperation({ summary: 'Оценить ответ и пересчитать срок по FSRS' })
+  @ApiParam({ name: 'vocabId', description: 'ID слова' })
+  @ApiBody({ type: RatingInputDto })
+  @ApiCreatedResponse({ type: ReviewResultDto })
+  @ApiBadRequestResponse({ description: 'Неверная оценка или слово не найдено' })
+  @ApiConflictResponse({ description: 'Карточка уже оценена или ещё не готова к повторению' })
   async review(
     @Req() request: Request,
     @Param('vocabId') vocabId: string,

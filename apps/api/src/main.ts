@@ -4,6 +4,7 @@ import express from 'express';
 import { timingSafeEqual } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { toNodeHandler } from 'better-auth/node';
 import { AppModule } from './app.module.js';
 import { auth } from './auth.js';
@@ -46,6 +47,17 @@ async function bootstrap() {
   expressApp.use(express.json({ limit: '1mb' }));
   expressApp.use(express.urlencoded({ extended: true }));
   app.setGlobalPrefix('api');
+  const openApiConfig = new DocumentBuilder()
+    .setTitle('Lingvoteka API')
+    .setDescription(
+      'Материалы уроков, словарь, повторение и грамматика. Доступ к личным данным — по сессионной cookie Better Auth.',
+    )
+    .setVersion('0.1.0')
+    .addCookieAuth('better-auth.session_token', undefined, 'sessionCookie')
+    .build();
+  SwaggerModule.setup('api/docs', app, () => SwaggerModule.createDocument(app, openApiConfig), {
+    jsonDocumentUrl: 'api/openapi.json',
+  });
   app.enableShutdownHooks();
   await app.listen(Number(process.env.PORT ?? 3001));
   console.info(`Lingvoteka API listening on port ${process.env.PORT ?? 3001}`);

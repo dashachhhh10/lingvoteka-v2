@@ -2,12 +2,15 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
 import { StaggerList } from './Motion';
+import { partsOfSpeech, semanticTopics } from './vocabulary-categories';
 
 type VocabDraft = {
   term: string;
   translation: string;
   example: string;
   sourceExcerpt: string;
+  partOfSpeech?: string;
+  semanticTopic?: string;
   alreadyInVocabulary?: boolean;
   otherMeaningInVocabulary?: boolean;
 };
@@ -53,6 +56,8 @@ const emptyVocab = (): VocabDraft => ({
   translation: '',
   example: '',
   sourceExcerpt: '',
+  partOfSpeech: '',
+  semanticTopic: '',
 });
 const emptyGrammar = (): GrammarDraft => ({ title: '', summary: '', sourceExcerpt: '' });
 
@@ -569,6 +574,44 @@ export function MaterialDetailPage() {
                     }
                   />
                 </label>
+                <div className="form-columns">
+                  <label>
+                    Часть речи
+                    <select
+                      value={item.partOfSpeech ?? ''}
+                      onChange={(event) =>
+                        setVocabulary((items) =>
+                          items.map((row, i) =>
+                            i === index ? { ...row, partOfSpeech: event.target.value } : row,
+                          ),
+                        )
+                      }
+                    >
+                      <option value="">Определим после сохранения</option>
+                      {partsOfSpeech.map((value) => (
+                        <option key={value}>{value}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Лексическая тема
+                    <select
+                      value={item.semanticTopic ?? ''}
+                      onChange={(event) =>
+                        setVocabulary((items) =>
+                          items.map((row, i) =>
+                            i === index ? { ...row, semanticTopic: event.target.value } : row,
+                          ),
+                        )
+                      }
+                    >
+                      <option value="">Определим после сохранения</option>
+                      {semanticTopics.map((value) => (
+                        <option key={value}>{value}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 {item.sourceExcerpt && (
                   <p className="source-excerpt">Из материала: {item.sourceExcerpt}</p>
                 )}

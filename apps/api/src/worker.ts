@@ -4,6 +4,15 @@ import { prisma } from './database.js';
 import { validateFileStorage } from './file-storage.js';
 import { processMaterialAnalysis } from './material-analysis-job.js';
 import {
+  failVocabularyClassification,
+  processVocabularyClassification,
+} from './vocabulary-classification-job.js';
+import {
+  enqueueVocabularyClassification,
+  ensureVocabularyQueue,
+  VOCABULARY_CLASSIFICATION_QUEUE,
+} from './vocabulary-queue.js';
+import {
   createBoss,
   enqueueMaterialAnalysis,
   ensureMaterialQueue,
@@ -11,6 +20,7 @@ import {
 } from './material-queue.js';
 
 type MaterialJob = { materialId: string };
+type VocabularyJob = { ownerId: string };
 
 const boss = createBoss();
 let reconciliationTimer: NodeJS.Timeout | undefined;
@@ -26,6 +36,16 @@ async function reconcileProcessingMaterials(): Promise<void> {
   }
 }
 
+async function reconcileVocabulary(): Promise<void> {
+  const owners = await prisma.vocabItem.findMany({
+    where: { categoryStatus: 'PENDING' },
+    distinct: ['ownerId'],
+    select: { ownerId: true },
+    take: 100,
+  });
+  for (const { ownerId } of owners) await enqueueVocabularyClassification(boss, ownerId);
+}
+
 async function shutdown(): Promise<void> {
   if (stopping) return;
   stopping = true;
@@ -38,6 +58,7 @@ async function main(): Promise<void> {
   validateFileStorage();
   await boss.start();
   await ensureMaterialQueue(boss);
+  await ensureVocabularyQueue(boss);
   await boss.work(
     MATERIAL_ANALYSIS_QUEUE,
     { includeMetadata: true, pollingIntervalSeconds: 2 },
@@ -69,12 +90,37 @@ async function main(): Promise<void> {
       }
     },
   );
+  await boss.work(
+    VOCABULARY_CLASSIFICATION_QUEUE,
+    { includeMetadata: true, pollingIntervalSeconds: 2 },
+    async ([job]: JobWithMetadata<VocabularyJob>[]) => {
+      if (!job) return;
+      try {
+        await processVocabularyClassification(job.data.ownerId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Не удалось определить темы слов';
+        const permanent = message.startsWith('AI не настроен');
+        const finalAttempt = job.retryCount >= job.retryLimit;
+        console.error('Vocabulary classification failed', {
+          ownerId: job.data.ownerId,
+          attempt: job.retryCount + 1,
+          message,
+        });
+        if (permanent || finalAttempt) await failVocabularyClassification(job.data.ownerId);
+        if (!permanent) throw error;
+      }
+    },
+  );
   await reconcileProcessingMaterials();
+  await reconcileVocabulary();
   reconciliationTimer = setInterval(() => {
     void reconcileProcessingMaterials().catch((error) =>
       console.error('Material job reconciliation failed', error),
     );
-  }, 60_000);
+    void reconcileVocabulary().catch((error) =>
+      console.error('Vocabulary job reconciliation failed', error),
+    );
+  }, 10_000);
   console.info('Lingvoteka material worker is ready');
 }
 

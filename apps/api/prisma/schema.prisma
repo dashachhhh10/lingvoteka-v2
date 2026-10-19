@@ -114,6 +114,9 @@ model VocabItem {
   translation       String
   normalizedMeaning String
   example           String?
+  partOfSpeech      String?
+  semanticTopic     String?
+  categoryStatus    String          @default("PENDING")
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   materials         MaterialVocab[]
@@ -121,6 +124,7 @@ model VocabItem {
 
   @@unique([ownerId, normalized, normalizedMeaning])
   @@index([ownerId, normalized])
+  @@index([categoryStatus, ownerId])
 }
 
 model GrammarTopic {

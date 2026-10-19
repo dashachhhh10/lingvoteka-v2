@@ -609,6 +609,7 @@ input,
 .material-form input,
 .material-form textarea,
 .review-item input,
+.review-item select,
 .review-item textarea {
   width: 100%;
   min-height: 45px;
@@ -628,6 +629,7 @@ input,
 .material-form input:focus,
 .material-form textarea:focus,
 .review-item input:focus,
+.review-item select:focus,
 .review-item textarea:focus {
   border-color: var(--focus);
 }
@@ -823,7 +825,7 @@ input,
   margin-top: 48px;
 }
 .vocab-toolbar input,
-.vocab-toolbar select,
+.vocab-filters select,
 .vocab-add input,
 .vocab-add textarea {
   min-height: 45px;
@@ -841,10 +843,31 @@ input,
 .vocab-toolbar input {
   width: min(100%, 410px);
 }
-.vocab-toolbar select {
+.vocab-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  max-width: 960px;
+  margin-top: 20px;
+}
+.vocab-filters label {
+  color: var(--muted);
+  font-size: 13px;
+}
+.vocab-filters select {
   min-width: 180px;
   max-width: 280px;
   cursor: pointer;
+}
+.vocab-filters .text-button {
+  margin-left: auto;
+}
+.vocab-ai-note {
+  max-width: 960px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 .vocab-add {
   display: grid;
@@ -868,7 +891,7 @@ input,
 }
 .vocab-groups {
   max-width: 960px;
-  margin-top: 30px;
+  margin-top: 22px;
   border-top: 1px solid var(--line);
 }
 .vocab-group {
@@ -1249,8 +1272,11 @@ button.vocab-group-heading:hover {
   .vocab-toolbar input {
     width: 100%;
   }
-  .vocab-toolbar select {
+  .vocab-filters select {
     max-width: none;
+  }
+  .vocab-filters .text-button {
+    margin-left: 0;
   }
   .vocab-row {
     grid-template-columns: minmax(0, 1fr) auto;

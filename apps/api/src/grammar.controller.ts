@@ -12,11 +12,34 @@ import {
 import { fromNodeHeaders } from 'better-auth/node';
 import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
+import {
+  ApiBadRequestResponse,
+  ApiBody,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
 import { generateGrammarContent } from './grammar-generation.js';
+import {
+  ExerciseAnswerDto,
+  ExerciseResultDto,
+  GrammarCreateDto,
+  GrammarCreatedDto,
+  GrammarDetailDto,
+  GrammarListItemDto,
+} from './openapi.dto.js';
 
 @Controller('grammar')
+@ApiTags('Грамматика')
+@ApiCookieAuth('sessionCookie')
+@ApiUnauthorizedResponse({ description: 'Сессия отсутствует или истекла' })
 export class GrammarController {
   private async ownerId(request: Request) {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
@@ -42,6 +65,8 @@ export class GrammarController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Получить свои грамматические темы' })
+  @ApiOkResponse({ type: [GrammarListItemDto] })
   async list(@Req() request: Request) {
     const ownerId = await this.ownerId(request);
     return prisma.grammarTopic.findMany({
@@ -58,6 +83,10 @@ export class GrammarController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Добавить тему вручную' })
+  @ApiBody({ type: GrammarCreateDto })
+  @ApiCreatedResponse({ type: GrammarCreatedDto })
+  @ApiBadRequestResponse({ description: 'Название темы не указано' })
   async create(@Req() request: Request, @Body() body: { title?: unknown; summary?: unknown }) {
     const ownerId = await this.ownerId(request);
     const title = typeof body?.title === 'string' ? body.title.trim().slice(0, 160) : '';
@@ -75,11 +104,19 @@ export class GrammarController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Получить тему, теорию, упражнения и источники' })
+  @ApiParam({ name: 'id', description: 'ID темы' })
+  @ApiOkResponse({ type: GrammarDetailDto })
+  @ApiNotFoundResponse({ description: 'Тема не принадлежит текущему пользователю' })
   async detail(@Req() request: Request, @Param('id') id: string) {
     return this.topic(id, await this.ownerId(request));
   }
 
   @Post(':id/generate')
+  @ApiOperation({ summary: 'Создать русское объяснение и итальянские упражнения' })
+  @ApiParam({ name: 'id', description: 'ID темы' })
+  @ApiCreatedResponse({ type: GrammarDetailDto })
+  @ApiBadRequestResponse({ description: 'Теория уже создана или AI-разбор не удался' })
   async generate(@Req() request: Request, @Param('id') id: string) {
     const ownerId = await this.ownerId(request);
     const topic = await this.topic(id, ownerId);
@@ -141,6 +178,12 @@ export class GrammarController {
   }
 
   @Post('exercises/:exerciseId/check')
+  @ApiOperation({ summary: 'Проверить ответ на упражнение' })
+  @ApiParam({ name: 'exerciseId', description: 'ID упражнения' })
+  @ApiBody({ type: ExerciseAnswerDto })
+  @ApiCreatedResponse({ type: ExerciseResultDto })
+  @ApiBadRequestResponse({ description: 'Неверный вариант ответа' })
+  @ApiNotFoundResponse({ description: 'Упражнение не принадлежит текущему пользователю' })
   async check(
     @Req() request: Request,
     @Param('exerciseId') exerciseId: string,
