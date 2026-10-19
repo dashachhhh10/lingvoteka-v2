@@ -1,4 +1,12 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
+import gsap from 'gsap';
 import {
   Link,
   Navigate,
@@ -470,14 +478,57 @@ function AppShell() {
   );
 }
 
+type TodaySummary = {
+  dueCount: number;
+  newCount: number;
+  cards: { id: string; term: string }[];
+};
+
+function TodayCardPreview({ term }: { term: string }) {
+  const preview = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!preview.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const context = gsap.context(() => {
+      gsap.fromTo(
+        '.today-preview-card',
+        { autoAlpha: 0, y: 18, rotation: 3 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          rotation: 0,
+          duration: 0.42,
+          delay: 0.08,
+          ease: 'power3.out',
+          clearProps: 'all',
+        },
+      );
+    }, preview);
+    return () => context.revert();
+  }, []);
+
+  return (
+    <div className="today-preview" ref={preview}>
+      <span className="today-preview-sheet today-preview-sheet-back" aria-hidden="true" />
+      <span className="today-preview-sheet today-preview-sheet-middle" aria-hidden="true" />
+      <Link className="today-preview-card" to="/review">
+        <span className="today-preview-label">Следующее слово</span>
+        <strong lang="it">{term}</strong>
+        <span className="today-preview-hint">Вспомни перевод</span>
+        <span className="visually-hidden">Открыть повторение</span>
+      </Link>
+    </div>
+  );
+}
+
 function TodayPage() {
   const { data } = authClient.useSession();
   const firstName = data?.user?.name?.trim().split(/\s+/)[0];
-  const [summary, setSummary] = useState<{ dueCount: number; newCount: number } | null>(null);
+  const [summary, setSummary] = useState<TodaySummary | null>(null);
   const [materialCount, setMaterialCount] = useState<number | null>(null);
   const [loadError, setLoadError] = useState(false);
   useEffect(() => {
-    void api<{ dueCount: number; newCount: number }>('/api/reviews/queue')
+    void api<TodaySummary>('/api/reviews/queue')
       .then(setSummary)
       .catch(() => setLoadError(true));
     void api<unknown[]>('/api/materials')
@@ -491,7 +542,10 @@ function TodayPage() {
       <p className="page-lead">
         {firstName ? `${firstName}, вот твой следующий шаг.` : 'Вот твой следующий шаг.'}
       </p>
-      <section className="today-focus" aria-labelledby="today-focus-title">
+      <section
+        className={available > 0 ? 'today-focus today-focus-has-cards' : 'today-focus'}
+        aria-labelledby="today-focus-title"
+      >
         {loadError ? (
           <div>
             <h2 id="today-focus-title">Не удалось загрузить план</h2>
@@ -503,14 +557,17 @@ function TodayPage() {
             <p>Проверяем материалы и карточки на сегодня.</p>
           </div>
         ) : available > 0 ? (
-          <div>
-            <h2 id="today-focus-title">Карточки ждут тебя</h2>
-            <p>
-              {summary.dueCount} на повторение · {summary.newCount} новых слов.
-            </p>
-            <Link className="action-link" to="/review">
-              Начать повторение
-            </Link>
+          <div className="today-focus-grid">
+            <div className="today-focus-copy">
+              <h2 id="today-focus-title">Карточки ждут тебя</h2>
+              <p>
+                {summary.dueCount} на повторение · {summary.newCount} новых слов.
+              </p>
+              <Link className="action-link" to="/review">
+                Начать повторение
+              </Link>
+            </div>
+            {summary.cards[0]?.term && <TodayCardPreview term={summary.cards[0].term} />}
           </div>
         ) : materialCount === 0 ? (
           <div>
