@@ -8,8 +8,11 @@
   --muted: #626262;
   --line: #dedede;
   --soft: #efefef;
-  --action: #292929;
+  --action: #53683d;
   --action-ink: #ffffff;
+  --secondary-action: #f2e8be;
+  --secondary-action-border: #967b22;
+  --secondary-action-ink: #3a3219;
   --focus: #53683d;
   --error: #aa3434;
   --success: #53683d;
@@ -29,8 +32,11 @@
   --muted: #b5b5b5;
   --line: #3c3c3c;
   --soft: #2b2b2b;
-  --action: #ebebeb;
-  --action-ink: #1c1c1c;
+  --action: #afc992;
+  --action-ink: #1b2117;
+  --secondary-action: #443b24;
+  --secondary-action-border: #d2b85d;
+  --secondary-action-ink: #f6edcf;
   --focus: #afc992;
   --error: #ffb4b4;
   --success: #afc992;
@@ -150,7 +156,8 @@ input,
   color: var(--ink);
 }
 .theme-toggle:hover {
-  background: var(--soft);
+  background: var(--accent-lemon-soft);
+  border-color: var(--accent-lemon);
 }
 .theme-toggle:active {
   transform: scale(0.96);
@@ -288,7 +295,11 @@ input,
   font-weight: 650;
   transition:
     transform 140ms ease,
+    filter 140ms ease,
     opacity 140ms ease;
+}
+.primary-button:hover:not(:disabled) {
+  filter: brightness(0.93);
 }
 .primary-button:disabled,
 .text-button:disabled {
@@ -670,16 +681,23 @@ input,
   font-weight: 650;
   text-decoration: none;
   white-space: nowrap;
+  transition:
+    filter 160ms ease,
+    transform 160ms ease;
 }
 .action-link:hover,
 .secondary-button:hover {
-  opacity: 0.82;
+  filter: brightness(0.93);
+}
+.action-link:active,
+.secondary-button:active {
+  transform: scale(0.985);
 }
 .secondary-button {
   gap: 0;
-  border-color: var(--line);
-  background: var(--surface);
-  color: var(--ink);
+  border-color: var(--secondary-action-border);
+  background: var(--secondary-action);
+  color: var(--secondary-action-ink);
 }
 .inline-link,
 .back-link {
@@ -806,15 +824,15 @@ input,
 .file-picker-button {
   min-height: 44px;
   padding: 10px 16px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--secondary-action-border);
   border-radius: 7px;
-  background: var(--soft);
-  color: var(--ink);
+  background: var(--secondary-action);
+  color: var(--secondary-action-ink);
   font-size: 14px;
   font-weight: 650;
 }
 .file-picker-button:hover {
-  border-color: var(--ink);
+  filter: brightness(0.93);
 }
 .file-picker-status {
   color: var(--muted);
@@ -1247,9 +1265,16 @@ button.vocab-group-heading:hover {
   color: var(--ink);
   font-size: 13px;
 }
+.rating-buttons button:nth-child(-n + 2) {
+  border-color: var(--secondary-action-border);
+  background: var(--accent-lemon-soft);
+}
+.rating-buttons button:nth-child(n + 3) {
+  border-color: var(--accent-olive);
+  background: var(--accent-olive-soft);
+}
 .rating-buttons button:hover {
-  border-color: var(--ink);
-  background: var(--soft);
+  filter: brightness(0.94);
 }
 .rating-buttons button:disabled {
   cursor: wait;
@@ -1372,9 +1397,9 @@ button.vocab-group-heading:hover {
 .practice-options button {
   min-height: 64px;
   padding: 13px 16px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--secondary-action-border);
   border-radius: 7px;
-  background: var(--surface);
+  background: var(--accent-lemon-soft);
   color: var(--ink);
   text-align: left;
   font-size: 16px;
