@@ -631,9 +631,51 @@ input,
 .review-item textarea:focus {
   border-color: var(--focus);
 }
-.material-form input[type='file'] {
-  height: auto;
-  padding: 11px;
+.file-picker-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+.material-form .file-picker-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.file-picker-button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+.file-picker-button:hover {
+  border-color: var(--ink);
+}
+.file-picker-status {
+  color: var(--muted);
+  font-size: 14px;
+}
+.selected-file-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 13px;
+  list-style: none;
+}
+.selected-file-list li {
+  overflow-wrap: anywhere;
 }
 .form-columns {
   display: grid;
@@ -849,6 +891,7 @@ input,
 }
 .review-page {
   min-height: 100dvh;
+  overflow-x: clip;
 }
 .review-topbar {
   display: flex;
@@ -870,52 +913,83 @@ input,
   color: var(--muted);
   font-size: 13px;
 }
-.flashcard {
+.flashcard-motion {
+  perspective: 1200px;
+}
+.flashcard-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  touch-action: pan-y;
+  user-select: none;
+  cursor: pointer;
+}
+.flashcard-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: clamp(340px, 52vh, 440px);
+  transform-style: preserve-3d;
+  transition: transform 320ms ease;
+}
+.flashcard-inner.flipped {
+  transform: rotateY(180deg);
+}
+.flashcard-face {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 340px;
-  padding: clamp(27px, 5vw, 55px);
+  padding: clamp(28px, 5vw, 55px);
+  overflow: auto;
   border: 1px solid var(--line);
   border-radius: 11px;
   background: var(--surface);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
-.flashcard > p {
-  margin: 0 0 25px;
+.flashcard-back {
+  transform: rotateY(180deg);
+}
+.flashcard-kicker {
+  margin-bottom: 22px;
   color: var(--muted);
   font-size: 14px;
 }
-.flashcard h1 {
-  margin: 0;
-  font-size: clamp(40px, 7vw, 65px);
+.flashcard-face strong {
+  display: block;
+  font-size: clamp(34px, 6vw, 60px);
   font-weight: 600;
   letter-spacing: -0.04em;
+  line-height: 1.13;
+  overflow-wrap: anywhere;
 }
-.flashcard-answer {
-  margin-top: 34px;
-  padding-top: 25px;
-  border-top: 1px solid var(--line);
+.flashcard-back strong {
+  font-size: clamp(30px, 5vw, 50px);
 }
-.flashcard-answer strong {
-  font-size: 24px;
-  font-weight: 570;
-}
-.flashcard-answer p {
-  margin: 8px 0 0;
+.flashcard-example {
+  margin-top: 22px;
   color: var(--muted);
   font-size: 16px;
   font-style: italic;
 }
-.reveal-button {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 17px;
-}
-.reveal-button span {
-  opacity: 0.7;
+.flashcard-tap {
+  position: absolute;
+  bottom: 24px;
+  color: var(--muted);
   font-size: 12px;
-  font-weight: 400;
+}
+.flashcard-help {
+  margin: 17px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
 }
 .rating-area {
   margin-top: 26px;

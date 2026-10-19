@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
 import { StaggerList } from './Motion';
@@ -132,11 +132,13 @@ export function MaterialsPage() {
 
 export function NewMaterialPage() {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
+  const [autoTitle, setAutoTitle] = useState(false);
   const [lessonDate, setLessonDate] = useState('');
   const [deadline, setDeadline] = useState('');
   const [noteText, setNoteText] = useState('');
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -148,7 +150,7 @@ export function NewMaterialPage() {
     form.set('lessonDate', lessonDate);
     form.set('deadline', deadline);
     form.set('noteText', noteText);
-    for (const file of Array.from(files ?? [])) form.append('files', file);
+    for (const file of files) form.append('files', file);
     try {
       const created = await api<{ id: string }>('/api/materials', { method: 'POST', body: form });
       navigate(`/materials/${created.id}?analyze=1`, { replace: true });
@@ -170,14 +172,19 @@ export function NewMaterialPage() {
         результат.
       </p>
       <form className="material-form" onSubmit={(event) => void submit(event)}>
-        <label htmlFor="material-title">Название урока</label>
+        <label htmlFor="material-title">
+          Название урока <span>подставим из первого файла, можно изменить</span>
+        </label>
         <input
           id="material-title"
           required
           maxLength={160}
           value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="Например, passato prossimo"
+          onChange={(event) => {
+            setTitle(event.target.value);
+            setAutoTitle(false);
+          }}
+          placeholder="Выбери файл или введи название"
         />
         <div className="form-columns">
           <div>
@@ -206,20 +213,48 @@ export function NewMaterialPage() {
         <label htmlFor="material-files">
           Файлы <span>PDF, DOCX, PPTX, JPG, PNG или TXT</span>
         </label>
-        <input
-          id="material-files"
-          type="file"
-          multiple
-          accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png,.txt"
-          onChange={(event) => setFiles(event.target.files)}
-        />
-        {files && files.length > 0 && (
-          <p className="subtle">
-            Выбрано:{' '}
-            {Array.from(files)
-              .map((file) => file.name)
-              .join(', ')}
-          </p>
+        <div className="file-picker-row">
+          <input
+            ref={fileInputRef}
+            id="material-files"
+            className="file-picker-input"
+            type="file"
+            tabIndex={-1}
+            multiple
+            accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png,.txt"
+            onChange={(event) => {
+              const selected = Array.from(event.target.files ?? []);
+              setFiles(selected);
+              if (selected[0] && (!title.trim() || autoTitle)) {
+                const fileName = selected[0].name;
+                const dot = fileName.lastIndexOf('.');
+                setTitle((dot > 0 ? fileName.slice(0, dot) : fileName).slice(0, 160));
+                setAutoTitle(true);
+              }
+            }}
+          />
+          <button
+            className="file-picker-button"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            aria-describedby="file-selection-status"
+          >
+            Выбрать файлы
+          </button>
+          <span className="file-picker-status" id="file-selection-status" role="status">
+            {files.length === 0
+              ? 'Файлы не выбраны'
+              : files.length === 1
+                ? 'Выбран 1 файл'
+                : `Выбрано файлов: ${files.length}`}
+          </span>
+        </div>
+        {files.length > 0 && (
+          <ul className="selected-file-list">
+            {files.map((file, index) => (
+              <li key={`${file.name}-${index}`}>{file.name}</li>
+            ))}
+          </ul>
         )}
         <label htmlFor="material-text">
           Текст урока <span>можно вместе с файлами</span>
@@ -243,7 +278,7 @@ export function NewMaterialPage() {
         <button
           className="primary-button form-action"
           type="submit"
-          disabled={pending || (!noteText.trim() && !files?.length)}
+          disabled={pending || (!noteText.trim() && files.length === 0)}
         >
           {pending ? 'Сохраняем…' : 'Добавить и разобрать'}
         </button>
@@ -428,14 +463,21 @@ export function MaterialDetailPage() {
       {material.status === 'PROCESSING' ? (
         <div className="theory-placeholder">
           <h2>Разбираем материал</h2>
-          <p>Это может занять несколько минут. Можно уйти со страницы и вернуться позже.</p>
+          <p>
+            Распознаём содержимое файлов и собираем слова и темы. Результат появится здесь
+            автоматически; можно уйти со страницы и вернуться позже.
+          </p>
         </div>
       ) : editable ? (
         <>
           <div className="review-heading">
             <div>
               <h2>Проверим, что получилось</h2>
-              <p>Исправь, удали или добавь записи. AI может ошибаться.</p>
+              <p>
+                {material.status === 'REVIEW'
+                  ? `AI-разбор готов: слов — ${vocabulary.length}, тем — ${grammar.length}. Проверь записи перед сохранением.`
+                  : 'Добавь слова и темы вручную или запусти разбор ещё раз.'}
+              </p>
             </div>
             <button
               className="secondary-button"

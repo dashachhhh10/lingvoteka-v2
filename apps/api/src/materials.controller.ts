@@ -27,6 +27,7 @@ import { loadFile, removeFile, storeFile } from './file-storage.js';
 import type { Draft } from './material-analysis.js';
 import { MaterialQueueService } from './material-queue.js';
 import { SessionGuard } from './session.guard.js';
+import { titleFromFileName, uploadedFileName } from './uploaded-file-name.js';
 import { normaliseMeaning, normaliseTerm } from './vocabulary-identity.js';
 
 const allowedMime = new Set([
@@ -132,7 +133,9 @@ export class MaterialsController {
     @UploadedFiles() files: Express.Multer.File[] = [],
   ) {
     const ownerId = await this.ownerId(request);
-    const title = typeof body.title === 'string' ? body.title.trim().slice(0, 160) : '';
+    const firstFileName = files[0] ? uploadedFileName(files[0].originalname) : '';
+    const typedTitle = typeof body.title === 'string' ? body.title.trim().slice(0, 160) : '';
+    const title = typedTitle || (firstFileName ? titleFromFileName(firstFileName) : '');
     const noteText = typeof body.noteText === 'string' ? body.noteText.trim().slice(0, 80_000) : '';
     if (!title) throw new BadRequestException('Укажи название материала');
     if (!noteText && !files.length) throw new BadRequestException('Добавь текст или файл');
@@ -146,7 +149,7 @@ export class MaterialsController {
         const storageKey = await storeFile(ownerId, file.buffer, file.mimetype);
         written.push(storageKey);
         stored.push({
-          name: file.originalname.slice(0, 255),
+          name: uploadedFileName(file.originalname),
           mimeType: file.mimetype,
           byteSize: file.size,
           storageKey,
