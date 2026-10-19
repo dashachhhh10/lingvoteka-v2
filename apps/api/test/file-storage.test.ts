@@ -52,6 +52,7 @@ test('S3 files round-trip across the storage boundary; legacy local files remain
       'S3_BUCKET',
       'S3_REGION',
       'S3_ENDPOINT',
+      'S3_FORCE_PATH_STYLE',
       'S3_ACCESS_KEY_ID',
       'S3_SECRET_ACCESS_KEY',
     ].map((name) => [name, process.env[name]]),
@@ -62,6 +63,7 @@ test('S3 files round-trip across the storage boundary; legacy local files remain
     process.env.S3_BUCKET = 'private-materials';
     process.env.S3_REGION = 'us-east-1';
     process.env.S3_ENDPOINT = `http://127.0.0.1:${address.port}`;
+    process.env.S3_FORCE_PATH_STYLE = 'true';
     process.env.S3_ACCESS_KEY_ID = 'test-access';
     process.env.S3_SECRET_ACCESS_KEY = 'test-secret';
 

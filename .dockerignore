@@ -1,0 +1,17 @@
+.git
+.agents
+.codex
+.vercel
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/data
+**/test
+apps/web/src
+apps/web/public
+apps/web/index.html
+apps/web/vite.config.ts
+apps/web/tsconfig*.json
+README.md
+docs

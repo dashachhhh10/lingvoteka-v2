@@ -5,6 +5,8 @@ dist/
 .env.local
 .DS_Store
 .vite/
+.vercel/
+.railway/
 coverage/
 data/
 *.tsbuildinfo

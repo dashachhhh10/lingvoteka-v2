@@ -39,6 +39,12 @@ export function validateFileStorage(): void {
       throw new Error('S3_ENDPOINT must use HTTPS in production');
     }
   }
+  if (
+    process.env.S3_FORCE_PATH_STYLE &&
+    !['true', 'false'].includes(process.env.S3_FORCE_PATH_STYLE)
+  ) {
+    throw new Error('S3_FORCE_PATH_STYLE must be true or false');
+  }
 }
 
 function s3(): S3Client {
@@ -47,7 +53,11 @@ function s3(): S3Client {
   client ??= new S3Client({
     region: process.env.S3_REGION!,
     endpoint: process.env.S3_ENDPOINT || undefined,
-    forcePathStyle: Boolean(process.env.S3_ENDPOINT),
+    // Older S3-compatible endpoints often use path-style URLs. Railway Buckets
+    // use virtual-hosted URLs, so production can explicitly opt out.
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE
+      ? process.env.S3_FORCE_PATH_STYLE === 'true'
+      : Boolean(process.env.S3_ENDPOINT),
     credentials: process.env.S3_ACCESS_KEY_ID
       ? {
           accessKeyId: process.env.S3_ACCESS_KEY_ID,
