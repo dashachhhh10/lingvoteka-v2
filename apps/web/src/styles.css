@@ -398,10 +398,10 @@ input,
 .page-vine {
   flex: 0 0 auto;
   width: 100%;
-  height: clamp(110px, 13vw, 176px);
+  height: clamp(112px, 11vw, 156px);
   overflow: hidden;
   color: var(--muted);
-  opacity: 0.46;
+  opacity: 0.52;
   pointer-events: none;
 }
 .page-vine svg {
@@ -409,20 +409,43 @@ input,
   width: 100%;
   height: 100%;
 }
-.page-vine-lines,
+.page-vine-stem,
+.page-vine-foliage,
 .page-vine-trace {
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.page-vine-lines {
-  stroke-width: 1.5;
+.page-vine-stem,
+.page-vine-foliage {
+  stroke-width: 1.35;
+}
+.page-vine-sprig {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: vine-sway 4.5s ease-in-out infinite alternate;
+}
+.page-vine-sprig-two {
+  animation-duration: 5.2s;
+  animation-delay: -1.7s;
+}
+.page-vine-sprig-three {
+  animation-duration: 4.9s;
+  animation-delay: -2.8s;
+}
+@keyframes vine-sway {
+  from {
+    transform: rotate(-2.5deg) translateY(1px);
+  }
+  to {
+    transform: rotate(2.5deg) translateY(-1px);
+  }
 }
 .page-vine-trace {
   stroke: var(--ink);
-  stroke-width: 2.2;
-  stroke-dasharray: 12 88;
+  stroke-width: 1.8;
+  stroke-dasharray: 14 86;
   stroke-dashoffset: 100;
   opacity: 0;
 }
@@ -1535,6 +1558,9 @@ button.vocab-group-heading:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .page-vine-sprig {
+    animation: none;
+  }
   *,
   *::before,
   *::after {

@@ -459,9 +459,7 @@ function AppShell() {
         </div>
       </header>
       <main className="page-content" id="main">
-        <PageMotion key={location.pathname}>
-          <Outlet />
-        </PageMotion>
+        <Outlet />
       </main>
       <PageVine pathname={location.pathname} />
       <nav className="mobile-nav" aria-label="Основная навигация на телефоне">
