@@ -314,6 +314,8 @@ input,
 }
 
 .app-layout {
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
 }
 .app-header {
@@ -388,9 +390,41 @@ input,
   border-color: var(--ink);
 }
 .page-content {
+  flex: 1 0 auto;
   width: min(100%, 1140px);
   margin: 0 auto;
   padding: 48px 32px 90px;
+}
+.page-vine {
+  flex: 0 0 auto;
+  width: 100%;
+  height: clamp(110px, 13vw, 176px);
+  overflow: hidden;
+  color: var(--muted);
+  opacity: 0.46;
+  pointer-events: none;
+}
+.page-vine svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.page-vine-lines,
+.page-vine-trace {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.page-vine-lines {
+  stroke-width: 1.5;
+}
+.page-vine-trace {
+  stroke: var(--ink);
+  stroke-width: 2.2;
+  stroke-dasharray: 12 88;
+  stroke-dashoffset: 100;
+  opacity: 0;
 }
 .today-focus {
   max-width: 720px;

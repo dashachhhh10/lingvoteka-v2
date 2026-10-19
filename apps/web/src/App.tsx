@@ -20,6 +20,7 @@ import {
 } from 'react-router-dom';
 import { authClient } from './auth-client';
 import { PageMotion } from './Motion';
+import { PageVine } from './PageVine';
 import { ThemeProvider, ThemeSwitch } from './theme';
 import { MaterialDetailPage, MaterialsPage, NewMaterialPage } from './Materials';
 import { ReviewPage, VocabularyPage } from './Vocabulary';
@@ -462,6 +463,7 @@ function AppShell() {
           <Outlet />
         </PageMotion>
       </main>
+      <PageVine pathname={location.pathname} />
       <nav className="mobile-nav" aria-label="Основная навигация на телефоне">
         {navigation.map((item) => (
           <NavLink
