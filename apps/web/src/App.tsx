@@ -417,45 +417,43 @@ function AppShell() {
   const location = useLocation();
   return (
     <div className="app-layout">
-      <aside className="sidebar">
-        <Link className="wordmark" to="/">
-          Lingvoteka<span className="wordmark-dot">.</span>
-        </Link>
-        <nav aria-label="Основная навигация">
-          {navigation.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-        <NavLink
-          to="/profile"
-          className={({ isActive }) => (isActive ? 'profile-link active' : 'profile-link')}
-        >
-          Профиль <span aria-hidden="true">↗</span>
-        </NavLink>
-      </aside>
-      <div className="main-column">
-        <header className="app-topbar">
-          <span className="topbar-label">Моё пространство</span>
-          <div className="topbar-actions">
+      <header className="app-header">
+        <div className="app-header-inner">
+          <Link className="wordmark" to="/">
+            Lingvoteka<span className="wordmark-dot">.</span>
+          </Link>
+          <nav className="desktop-nav" aria-label="Основная навигация">
+            {navigation.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="header-actions">
             <ThemeSwitch />
-            <span className="avatar" aria-label={data?.user?.name}>
-              {data?.user?.name?.slice(0, 1).toLocaleUpperCase('ru') ?? 'Л'}
-            </span>
+            <NavLink
+              to="/profile"
+              className={({ isActive }) => (isActive ? 'account-link active' : 'account-link')}
+              aria-label="Профиль"
+              title="Профиль"
+            >
+              <span className="avatar" aria-hidden="true">
+                {data?.user?.name?.slice(0, 1).toLocaleUpperCase('ru') ?? 'Л'}
+              </span>
+            </NavLink>
           </div>
-        </header>
-        <main className="page-content" id="main">
-          <PageMotion key={location.pathname}>
-            <Outlet />
-          </PageMotion>
-        </main>
-      </div>
+        </div>
+      </header>
+      <main className="page-content" id="main">
+        <PageMotion key={location.pathname}>
+          <Outlet />
+        </PageMotion>
+      </main>
       <nav className="mobile-nav" aria-label="Основная навигация на телефоне">
         {navigation.map((item) => (
           <NavLink
@@ -467,12 +465,6 @@ function AppShell() {
             {item.label}
           </NavLink>
         ))}
-        <NavLink
-          to="/profile"
-          className={({ isActive }) => (isActive ? 'mobile-nav-link active' : 'mobile-nav-link')}
-        >
-          Профиль
-        </NavLink>
       </nav>
     </div>
   );
@@ -495,57 +487,49 @@ function TodayPage() {
   const available = (summary?.dueCount ?? 0) + (summary?.newCount ?? 0);
   return (
     <>
-      <p className="eyebrow">СЕГОДНЯ</p>
-      <h1 className="page-title">{firstName ? `Привет, ${firstName}` : 'Добро пожаловать'}</h1>
-      <p className="page-lead">Твой итальянский — по одному небольшому шагу за раз.</p>
-      <section className="empty-section" aria-labelledby="empty-title">
-        <div className="empty-mark" aria-hidden="true">
-          {available || 'L'}
-        </div>
+      <h1 className="page-title">Сегодня</h1>
+      <p className="page-lead">
+        {firstName ? `${firstName}, вот твой следующий шаг.` : 'Вот твой следующий шаг.'}
+      </p>
+      <section className="today-focus" aria-labelledby="today-focus-title">
         {loadError ? (
           <div>
-            <h2 id="empty-title">Не удалось загрузить план</h2>
+            <h2 id="today-focus-title">Не удалось загрузить план</h2>
             <p>Проверь соединение и обнови страницу.</p>
           </div>
         ) : summary === null || materialCount === null ? (
           <div>
-            <h2 id="empty-title">Собираем твой план</h2>
+            <h2 id="today-focus-title">Собираем твой план</h2>
             <p>Проверяем материалы и карточки на сегодня.</p>
           </div>
         ) : available > 0 ? (
           <div>
-            <h2 id="empty-title">Карточки ждут тебя</h2>
+            <h2 id="today-focus-title">Карточки ждут тебя</h2>
             <p>
               {summary.dueCount} на повторение · {summary.newCount} новых слов.
             </p>
-            <Link className="inline-link" to="/review">
+            <Link className="action-link" to="/review">
               Начать повторение
             </Link>
           </div>
         ) : materialCount === 0 ? (
           <div>
-            <h2 id="empty-title">Пока здесь тихо</h2>
+            <h2 id="today-focus-title">Добавь первый материал</h2>
             <p>Когда добавишь материалы, мы соберём из них слова и темы для практики.</p>
-            <Link className="inline-link" to="/materials/new">
-              Добавить первый материал
+            <Link className="action-link" to="/materials/new">
+              Добавить материал
             </Link>
           </div>
         ) : (
           <div>
-            <h2 id="empty-title">На сегодня всё</h2>
+            <h2 id="today-focus-title">На сегодня всё</h2>
             <p>Можно добавить новый материал или потренировать грамматику.</p>
-            <Link className="inline-link" to="/materials/new">
+            <Link className="action-link" to="/materials/new">
               Добавить материал
             </Link>
           </div>
         )}
       </section>
-      <div className="next-steps">
-        <span>ТВОЙ МАРШРУТ</span>
-        <p>
-          Материал <b>→</b> слова и темы <b>→</b> повторение
-        </p>
-      </div>
     </>
   );
 }
