@@ -9,6 +9,7 @@ type VocabItem = {
   translation: string;
   example: string | null;
   reviewStates: { due: string; lastReviewedAt: string }[];
+  materials: { material: { id: string; title: string; createdAt: string } }[];
 };
 type QueueCard = {
   id: string;
@@ -18,10 +19,14 @@ type QueueCard = {
   kind: 'new' | 'due';
 };
 type Queue = { dueCount: number; newCount: number; cards: QueueCard[] };
+const wordCount = (count: number) =>
+  `${count} ${count % 10 === 1 && count % 100 !== 11 ? 'слово' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'слова' : 'слов'}`;
 
 export function VocabularyPage() {
   const [items, setItems] = useState<VocabItem[]>([]);
   const [query, setQuery] = useState('');
+  const [topic, setTopic] = useState('all');
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(() => new Set());
   const [showAdd, setShowAdd] = useState(false);
   const [term, setTerm] = useState('');
   const [translation, setTranslation] = useState('');
@@ -42,6 +47,55 @@ export function VocabularyPage() {
       ),
     [items, query],
   );
+  const groups = useMemo(() => {
+    const byTopic = new Map<
+      string,
+      { id: string; title: string; createdAt: string; items: VocabItem[] }
+    >();
+    for (const item of shown) {
+      const sources = item.materials.length
+        ? item.materials.map(({ material }) => material)
+        : [{ id: 'manual', title: 'Без темы', createdAt: '' }];
+      for (const source of sources) {
+        const group = byTopic.get(source.id) ?? {
+          id: source.id,
+          title: source.title,
+          createdAt: source.createdAt,
+          items: [],
+        };
+        group.items.push(item);
+        byTopic.set(source.id, group);
+      }
+    }
+    return [...byTopic.values()]
+      .filter((group) => topic === 'all' || group.id === topic)
+      .sort((a, b) => {
+        if (a.id === 'manual') return 1;
+        if (b.id === 'manual') return -1;
+        return b.createdAt.localeCompare(a.createdAt);
+      });
+  }, [shown, topic]);
+  const topics = useMemo(() => {
+    const byTopic = new Map<string, { id: string; title: string; createdAt: string }>();
+    for (const item of items) {
+      if (!item.materials.length)
+        byTopic.set('manual', { id: 'manual', title: 'Без темы', createdAt: '' });
+      for (const { material } of item.materials) byTopic.set(material.id, material);
+    }
+    return [...byTopic.values()].sort((a, b) => {
+      if (a.id === 'manual') return 1;
+      if (b.id === 'manual') return -1;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }, [items]);
+  function toggleTopic(id: string) {
+    setExpandedTopics((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
@@ -91,6 +145,17 @@ export function VocabularyPage() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
+        <label className="visually-hidden" htmlFor="vocab-topic">
+          Тема словаря
+        </label>
+        <select id="vocab-topic" value={topic} onChange={(event) => setTopic(event.target.value)}>
+          <option value="all">Все темы</option>
+          {topics.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.title}
+            </option>
+          ))}
+        </select>
         <button className="secondary-button" type="button" onClick={() => setShowAdd(!showAdd)}>
           {showAdd ? 'Закрыть' : '+ Добавить вручную'}
         </button>
@@ -135,26 +200,56 @@ export function VocabularyPage() {
             </Link>
           </div>
         </section>
-      ) : !shown.length ? (
-        <p className="subtle">По этому запросу ничего не найдено.</p>
+      ) : !groups.length ? (
+        <p className="subtle">В этой теме слова не найдены.</p>
       ) : (
-        <div className="vocab-list">
-          {shown.map((item) => (
-            <div className="vocab-row" key={item.id}>
-              <div>
-                <strong lang="it">{item.term}</strong>
-                {item.example && <small lang="it">{item.example}</small>}
-              </div>
-              <span>{item.translation}</span>
-              <small>
-                {!item.reviewStates.length
-                  ? 'Новое'
-                  : new Date(item.reviewStates[0].due) <= new Date()
-                    ? 'Пора повторить'
-                    : 'На повторении'}
-              </small>
-            </div>
-          ))}
+        <div className="vocab-groups">
+          {groups.map((group) => {
+            const open = Boolean(query.trim()) || topic !== 'all' || expandedTopics.has(group.id);
+            return (
+              <section className="vocab-group" key={group.id}>
+                {query.trim() || topic !== 'all' ? (
+                  <div className="vocab-group-heading">
+                    <span>{group.title}</span>
+                    <span className="vocab-group-meta">{wordCount(group.items.length)}</span>
+                  </div>
+                ) : (
+                  <button
+                    className="vocab-group-heading"
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() => toggleTopic(group.id)}
+                  >
+                    <span>{group.title}</span>
+                    <span className="vocab-group-meta">
+                      {wordCount(group.items.length)}
+                      <span className="vocab-group-chevron" aria-hidden="true" />
+                    </span>
+                  </button>
+                )}
+                {open && (
+                  <div className="vocab-list">
+                    {group.items.map((item) => (
+                      <div className="vocab-row" key={item.id}>
+                        <div>
+                          <strong lang="it">{item.term}</strong>
+                          {item.example && <small lang="it">{item.example}</small>}
+                        </div>
+                        <span>{item.translation}</span>
+                        <small>
+                          {!item.reviewStates.length
+                            ? 'Новое'
+                            : new Date(item.reviewStates[0].due) <= new Date()
+                              ? 'Пора повторить'
+                              : 'На повторении'}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
     </>
@@ -215,7 +310,6 @@ export function ReviewPage() {
         }),
       ]);
       if (result[1].status === 'rejected') throw result[1].reason;
-      if (motion) gsap.set(motion, { x: 0, rotation: 0, opacity: 1 });
       setRevealed(false);
       setIndex((current) => current + 1);
     } catch (reason) {
@@ -332,7 +426,7 @@ export function ReviewPage() {
               </span>
               <span>{card.kind === 'new' ? 'Новое слово' : 'Повторение'}</span>
             </div>
-            <div className="flashcard-motion" ref={cardMotionRef}>
+            <div className="flashcard-motion" key={card.id} ref={cardMotionRef}>
               <button
                 className="flashcard-button"
                 type="button"

@@ -823,6 +823,7 @@ input,
   margin-top: 48px;
 }
 .vocab-toolbar input,
+.vocab-toolbar select,
 .vocab-add input,
 .vocab-add textarea {
   min-height: 45px;
@@ -839,6 +840,11 @@ input,
 }
 .vocab-toolbar input {
   width: min(100%, 410px);
+}
+.vocab-toolbar select {
+  min-width: 180px;
+  max-width: 280px;
+  cursor: pointer;
 }
 .vocab-add {
   display: grid;
@@ -860,10 +866,55 @@ input,
   color: var(--muted);
   font-weight: 400;
 }
-.vocab-list {
+.vocab-groups {
   max-width: 960px;
   margin-top: 30px;
   border-top: 1px solid var(--line);
+}
+.vocab-group {
+  border-bottom: 1px solid var(--line);
+}
+.vocab-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  min-height: 68px;
+  padding: 16px 5px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 650;
+}
+button.vocab-group-heading {
+  cursor: pointer;
+}
+button.vocab-group-heading:hover {
+  color: var(--muted);
+}
+.vocab-group-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  flex: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+.vocab-group-chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 180ms ease;
+}
+[aria-expanded='true'] .vocab-group-chevron {
+  transform: rotate(225deg);
 }
 .vocab-row {
   display: grid;
@@ -873,6 +924,9 @@ input,
   padding: 20px 5px;
   border-bottom: 1px solid var(--line);
   font-size: 15px;
+}
+.vocab-row:last-child {
+  border-bottom: 0;
 }
 .vocab-row strong {
   display: block;
@@ -1194,6 +1248,9 @@ input,
   }
   .vocab-toolbar input {
     width: 100%;
+  }
+  .vocab-toolbar select {
+    max-width: none;
   }
   .vocab-row {
     grid-template-columns: minmax(0, 1fr) auto;

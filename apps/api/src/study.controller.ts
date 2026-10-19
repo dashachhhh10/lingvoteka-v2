@@ -59,6 +59,11 @@ export class StudyController {
         example: true,
         createdAt: true,
         reviewStates: { where: { userId: ownerId }, select: { due: true, lastReviewedAt: true } },
+        materials: {
+          select: {
+            material: { select: { id: true, title: true, createdAt: true } },
+          },
+        },
       },
     });
   }
