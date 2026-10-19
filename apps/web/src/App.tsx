@@ -32,7 +32,7 @@ function translateAuthError(code?: string, message?: string): string {
 
 function BusyScreen() {
   return (
-    <div className="busy-screen" role="status">
+    <div className="grid min-h-dvh place-items-center text-muted" role="status">
       Загружаем Lingvoteka…
     </div>
   );
@@ -93,7 +93,9 @@ function AuthFrame({
           {footer && <div className="auth-footer">{footer}</div>}
         </PageMotion>
       </main>
-      <footer className="quiet-footer">Материалы, слова и практика — в одном месте.</footer>
+      <footer className="px-5 pb-7 text-center text-xs text-muted">
+        Материалы, слова и практика — в одном месте.
+      </footer>
     </div>
   );
 }
