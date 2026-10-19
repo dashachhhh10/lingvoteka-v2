@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:storage": "tsx --test test/file-storage.test.ts",
     "test:flow": "tsx test/full-flow.smoke.ts",
+    "test:image-flow": "tsx test/image-flow.smoke.ts",
     "start": "node dist/main.js",
     "start:worker": "node dist/worker.js",
     "db:generate": "prisma generate",
