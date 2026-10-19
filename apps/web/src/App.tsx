@@ -20,26 +20,12 @@ import { GrammarDetailPage, GrammarPage } from './Grammar';
 
 function translateAuthError(code?: string, message?: string): string {
   if (code === 'INVALID_EMAIL_OR_PASSWORD') return 'Неверная почта или пароль';
-  if (code === 'EMAIL_NOT_VERIFIED') return 'Сначала подтверди почту.';
   if (code === 'USER_ALREADY_EXISTS' || code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL')
     return 'Аккаунт с такой почтой уже существует';
   if (code === 'PASSWORD_TOO_SHORT') return 'Пароль должен содержать не менее 10 символов';
   return message
     ? 'Не удалось выполнить действие. Проверь данные и попробуй ещё раз.'
     : 'Не удалось связаться с сервером. Попробуй ещё раз.';
-}
-
-async function getLocalVerificationLink(email: string): Promise<string | null> {
-  try {
-    const response = await fetch(`/api/dev/verification-link?email=${encodeURIComponent(email)}`, {
-      cache: 'no-store',
-    });
-    if (!response.ok) return null;
-    const data = (await response.json()) as { url?: string };
-    return data.url ?? null;
-  } catch {
-    return null;
-  }
 }
 
 function BusyScreen() {
@@ -79,7 +65,7 @@ function AuthFrame({
         <Link className="wordmark" to="/">
           Lingvoteka<span className="wordmark-dot">.</span>
         </Link>
-        <ThemeSwitch compact />
+        <ThemeSwitch />
       </header>
       <main className="auth-main">
         <PageMotion>
@@ -157,24 +143,15 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [needsVerification, setNeedsVerification] = useState(false);
-  const [verificationLink, setVerificationLink] = useState<string | null>(null);
-  const [resending, setResending] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     setError(null);
-    setNeedsVerification(false);
-    setVerificationLink(null);
     try {
       const result = await authClient.signIn.email({ email, password });
       if (result.error) {
         setError(translateAuthError(result.error.code, result.error.message));
-        if (result.error.code === 'EMAIL_NOT_VERIFIED') {
-          setNeedsVerification(true);
-          setVerificationLink(await getLocalVerificationLink(email));
-        }
       } else {
         navigate('/', { replace: true });
       }
@@ -182,31 +159,6 @@ function LoginPage() {
       setError(translateAuthError());
     } finally {
       setPending(false);
-    }
-  }
-
-  async function resendVerification() {
-    setResending(true);
-    try {
-      const result = await authClient.sendVerificationEmail({
-        email,
-        callbackURL: window.location.origin + '/',
-      });
-      if (result.error) {
-        setError(translateAuthError(result.error.code, result.error.message));
-        return;
-      }
-      const link = await getLocalVerificationLink(email);
-      setVerificationLink(link);
-      setError(
-        link
-          ? 'Подтверди почту по локальной ссылке.'
-          : 'Проверь почту: ссылка отправлена повторно.',
-      );
-    } catch {
-      setError(translateAuthError());
-    } finally {
-      setResending(false);
     }
   }
 
@@ -242,16 +194,6 @@ function LoginPage() {
           onChange={setPassword}
         />
         <FormMessage error={error} />
-        {needsVerification && (
-          <div className="verification-actions">
-            {verificationLink && (
-              <a href={verificationLink}>Подтвердить почту в локальном режиме</a>
-            )}
-            <button type="button" onClick={() => void resendVerification()} disabled={resending}>
-              {resending ? 'Отправляем…' : 'Отправить ссылку повторно'}
-            </button>
-          </div>
-        )}
         <button className="primary-button" type="submit" disabled={pending}>
           {pending ? 'Входим…' : 'Войти'}
         </button>
@@ -261,43 +203,31 @@ function LoginPage() {
 }
 
 function RegisterPage() {
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [verificationLink, setVerificationLink] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     setError(null);
-    setSuccess(null);
-    setVerificationLink(null);
     try {
-      const response = await fetch('/api/auth/sign-up/email', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'X-Registration-Code': inviteCode },
-        body: JSON.stringify({ name, email, password, callbackURL: window.location.origin + '/' }),
-      });
-      if (!response.ok) {
-        const detail = (await response.json()) as { code?: string; message?: string };
+      const result = await authClient.signUp.email(
+        { name, email, password },
+        { headers: { 'X-Registration-Code': inviteCode } },
+      );
+      if (result.error) {
         setError(
-          detail.code === 'INVITE_CODE_REQUIRED'
+          result.error.code === 'INVITE_CODE_REQUIRED'
             ? 'Неверный код приглашения'
-            : translateAuthError(detail.code, detail.message),
+            : translateAuthError(result.error.code, result.error.message),
         );
       } else {
-        const link = await getLocalVerificationLink(email);
-        setVerificationLink(link);
-        setSuccess(
-          link
-            ? 'В локальном режиме письма не отправляются. Подтверди адрес по ссылке ниже.'
-            : 'Проверь почту: мы отправили ссылку для подтверждения адреса.',
-        );
+        navigate('/', { replace: true });
       }
     } catch {
       setError(translateAuthError());
@@ -361,13 +291,8 @@ function RegisterPage() {
           value={inviteCode}
           onChange={(event) => setInviteCode(event.target.value)}
         />
-        <FormMessage error={error} success={success} />
-        {verificationLink && (
-          <div className="verification-actions">
-            <a href={verificationLink}>Подтвердить почту</a>
-          </div>
-        )}
-        <button className="primary-button" type="submit" disabled={pending || Boolean(success)}>
+        <FormMessage error={error} />
+        <button className="primary-button" type="submit" disabled={pending}>
           {pending ? 'Создаём аккаунт…' : 'Зарегистрироваться'}
         </button>
       </form>
@@ -519,7 +444,7 @@ function AppShell() {
         <header className="app-topbar">
           <span className="topbar-label">Моё пространство</span>
           <div className="topbar-actions">
-            <ThemeSwitch compact />
+            <ThemeSwitch />
             <span className="avatar" aria-label={data?.user?.name}>
               {data?.user?.name?.slice(0, 1).toLocaleUpperCase('ru') ?? 'Л'}
             </span>

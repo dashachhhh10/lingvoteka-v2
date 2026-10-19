@@ -8,14 +8,11 @@ import { toNodeHandler } from 'better-auth/node';
 import { AppModule } from './app.module.js';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
-import {
-  getDevelopmentVerificationLink,
-  initializeEmailDelivery,
-  localEmailPreviewEnabled,
-  smtpConfigured,
-} from './email.js';
+import { validateFileStorage } from './file-storage.js';
+import { initializeEmailDelivery, smtpConfigured } from './email.js';
 
 async function bootstrap() {
+  validateFileStorage();
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
   if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32) {
     throw new Error('BETTER_AUTH_SECRET must be at least 32 characters');
@@ -31,23 +28,6 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
   const expressApp = app.getHttpAdapter().getInstance() as express.Express;
-  expressApp.get('/api/dev/verification-link', (request, response) => {
-    const address = request.socket.remoteAddress;
-    const localRequest =
-      address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
-    if (!localEmailPreviewEnabled() || !localRequest) {
-      response.sendStatus(404);
-      return;
-    }
-    const email = typeof request.query.email === 'string' ? request.query.email : '';
-    const url = getDevelopmentVerificationLink(email);
-    if (!url) {
-      response.sendStatus(404);
-      return;
-    }
-    response.setHeader('Cache-Control', 'no-store');
-    response.json({ url });
-  });
   expressApp.use('/api/auth/sign-up/email', (request, response, next) => {
     const configured = process.env.REGISTRATION_INVITE_CODE;
     if (!configured) return next();

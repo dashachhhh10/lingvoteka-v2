@@ -14,26 +14,13 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,
-    requireEmailVerification: true,
+    requireEmailVerification: false,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
       await sendEmail({
         to: user.email,
         subject: 'Сброс пароля Lingvoteka',
         text: `Чтобы задать новый пароль, открой ссылку: ${url}`,
-      });
-    },
-  },
-  emailVerification: {
-    sendOnSignUp: true,
-    sendOnSignIn: true,
-    autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({ user, url }) => {
-      await sendEmail({
-        to: user.email,
-        subject: 'Подтверждение адреса Lingvoteka',
-        text: `Чтобы подтвердить почту, открой ссылку: ${url}`,
-        verificationUrl: url,
       });
     },
   },

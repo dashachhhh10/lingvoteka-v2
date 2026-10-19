@@ -4,22 +4,12 @@ type EmailInput = {
   to: string;
   subject: string;
   text: string;
-  verificationUrl?: string;
 };
 
-const developmentVerificationLinks = new Map<string, string>();
 let smtpVerified = false;
 
 export function smtpConfigured(): boolean {
   return Boolean(process.env.SMTP_HOST && (!process.env.SMTP_USER || process.env.SMTP_PASSWORD));
-}
-
-export function localEmailPreviewEnabled(): boolean {
-  return process.env.NODE_ENV !== 'production' && !smtpVerified;
-}
-
-export function getDevelopmentVerificationLink(email: string): string | undefined {
-  return developmentVerificationLinks.get(email.trim().toLowerCase());
 }
 
 function createTransport() {
@@ -35,9 +25,6 @@ function createTransport() {
 }
 
 function previewDevelopmentEmail(input: EmailInput): void {
-  if (input.verificationUrl) {
-    developmentVerificationLinks.set(input.to.trim().toLowerCase(), input.verificationUrl);
-  }
   console.info(`[development email] to=${input.to} subject=${input.subject}\n${input.text}`);
 }
 

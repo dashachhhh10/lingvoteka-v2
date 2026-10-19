@@ -19,19 +19,16 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { Request, Response } from 'express';
-import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import JSZip from 'jszip';
 import { Prisma } from '@prisma/client';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
+import { loadFile, removeFile, storeFile } from './file-storage.js';
 import type { Draft } from './material-analysis.js';
 import { MaterialQueueService } from './material-queue.js';
 import { SessionGuard } from './session.guard.js';
 import { normaliseMeaning, normaliseTerm } from './vocabulary-identity.js';
 
-const uploadRoot = resolve(process.env.UPLOAD_DIR ?? './data/uploads');
 const allowedMime = new Set([
   'application/pdf',
   'image/jpeg',
@@ -144,11 +141,9 @@ export class MaterialsController {
     await Promise.all(files.map(validFile));
     const written: string[] = [];
     try {
-      await mkdir(uploadRoot, { recursive: true });
       const stored = [];
       for (const file of files) {
-        const storageKey = resolve(uploadRoot, randomUUID());
-        await writeFile(storageKey, file.buffer, { flag: 'wx', mode: 0o600 });
+        const storageKey = await storeFile(ownerId, file.buffer, file.mimetype);
         written.push(storageKey);
         stored.push({
           name: file.originalname.slice(0, 255),
@@ -169,7 +164,10 @@ export class MaterialsController {
         select: { id: true, title: true, status: true },
       });
     } catch (error) {
-      await Promise.all(written.map((path) => rm(path, { force: true })));
+      const cleanup = await Promise.allSettled(written.map(removeFile));
+      if (cleanup.some((result) => result.status === 'rejected')) {
+        console.error('Could not clean up all uploaded files after material creation failed');
+      }
       throw error;
     }
   }
@@ -310,7 +308,7 @@ export class MaterialsController {
       where: { id: fileId, material: { id, ownerId } },
     });
     if (!file) throw new NotFoundException('Файл не найден');
-    const bytes = await readFile(file.storageKey);
+    const bytes = await loadFile(file.storageKey);
     response.setHeader('Content-Type', file.mimeType);
     response.setHeader(
       'Content-Disposition',

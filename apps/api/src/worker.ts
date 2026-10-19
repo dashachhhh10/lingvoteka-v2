@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import type { JobWithMetadata } from 'pg-boss';
 import { prisma } from './database.js';
+import { validateFileStorage } from './file-storage.js';
 import { processMaterialAnalysis } from './material-analysis-job.js';
 import {
   createBoss,
@@ -34,6 +35,7 @@ async function shutdown(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  validateFileStorage();
   await boss.start();
   await ensureMaterialQueue(boss);
   await boss.work(

@@ -1,6 +1,6 @@
-import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
 import mammoth from 'mammoth';
+import { loadFile } from './file-storage.js';
 
 export type Draft = {
   vocabulary: {
@@ -87,7 +87,7 @@ export async function analyzeMaterial(
   const textSections: string[] = [];
   if (noteText?.trim()) textSections.push(`Ручной текст:\n${noteText.slice(0, 80_000)}`);
   for (const file of files) {
-    const buffer = await readFile(file.storageKey);
+    const buffer = await loadFile(file.storageKey);
     let extracted: string | undefined;
     if (file.mimeType === 'text/plain') extracted = buffer.toString('utf8');
     if (

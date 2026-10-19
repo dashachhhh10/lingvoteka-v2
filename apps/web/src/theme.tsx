@@ -92,28 +92,30 @@ export function useTheme() {
   return context;
 }
 
-export function ThemeSwitch({ compact = false }: { compact?: boolean }) {
+export function ThemeSwitch() {
   const { theme, setTheme, error } = useTheme();
+  const nextTheme = theme === 'light' ? 'dark' : 'light';
+  const label = nextTheme === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему';
   return (
     <div className="theme-switch-wrap">
-      <div className="theme-switch" role="group" aria-label="Тема оформления">
-        <button
-          type="button"
-          className={theme === 'light' ? 'theme-option active' : 'theme-option'}
-          aria-pressed={theme === 'light'}
-          onClick={() => void setTheme('light')}
-        >
-          {compact ? 'Светлая' : 'Светлая тема'}
-        </button>
-        <button
-          type="button"
-          className={theme === 'dark' ? 'theme-option active' : 'theme-option'}
-          aria-pressed={theme === 'dark'}
-          onClick={() => void setTheme('dark')}
-        >
-          {compact ? 'Тёмная' : 'Тёмная тема'}
-        </button>
-      </div>
+      <button
+        type="button"
+        className="theme-toggle"
+        aria-label={label}
+        title={label}
+        onClick={() => void setTheme(nextTheme)}
+      >
+        {nextTheme === 'dark' ? (
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20.2 15.4A8.5 8.5 0 0 1 8.6 3.8a8.5 8.5 0 1 0 11.6 11.6Z" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+        )}
+      </button>
       {error && (
         <p className="field-error" role="alert">
           {error}
