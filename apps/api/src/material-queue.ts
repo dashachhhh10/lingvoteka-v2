@@ -1,5 +1,6 @@
 import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { PgBoss } from 'pg-boss';
+import { enqueueGrammarGeneration, ensureGrammarQueue } from './grammar-queue.js';
 
 export const MATERIAL_ANALYSIS_QUEUE = 'material-analysis';
 
@@ -33,6 +34,7 @@ export class MaterialQueueService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
     await this.boss.start();
     await ensureMaterialQueue(this.boss);
+    await ensureGrammarQueue(this.boss);
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -41,5 +43,9 @@ export class MaterialQueueService implements OnModuleInit, OnModuleDestroy {
 
   enqueue(materialId: string) {
     return enqueueMaterialAnalysis(this.boss, materialId);
+  }
+
+  enqueueGrammar(topicId: string) {
+    return enqueueGrammarGeneration(this.boss, topicId);
   }
 }

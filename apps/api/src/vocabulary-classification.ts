@@ -13,7 +13,7 @@ export async function classifyVocabulary(words: WordToClassify[]) {
   if (!words.length) return [];
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('AI не настроен: добавь GEMINI_API_KEY на сервере');
-  const endpoint = `${(process.env.GEMINI_API_BASE_URL ?? 'https://generativelanguage.googleapis.com').replace(/\/+$/, '')}/v1beta/models/${encodeURIComponent(process.env.GEMINI_MODEL ?? 'gemini-3.5-flash')}:generateContent`;
+  const endpoint = `${(process.env.GEMINI_API_BASE_URL ?? 'https://generativelanguage.googleapis.com').replace(/\/+$/, '')}/v1beta/models/${encodeURIComponent(process.env.GEMINI_MODEL ?? 'gemini-3.5-flash-lite')}:generateContent`;
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
