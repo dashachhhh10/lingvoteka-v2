@@ -49,7 +49,7 @@ async function pptxText(buffer: Buffer) {
   const parts = await Promise.all(
     slides.map(async (name, index) => {
       const xml = await zip.file(name)!.async('string');
-      const texts = [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map((match) =>
+      const texts = [...xml.matchAll(/<a:t\b[^>]*>([\s\S]*?)<\/a:t>/g)].map((match) =>
         decodeXml(match[1] ?? ''),
       );
       return `Слайд ${index + 1}: ${texts.join(' ')}`;
