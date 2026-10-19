@@ -76,7 +76,7 @@ export class StudyController {
   @ApiOkResponse({ type: [VocabularyListItemDto] })
   async vocabulary(@Req() request: Request) {
     const ownerId = await this.userId(request);
-    return prisma.vocabItem.findMany({
+    const words = await prisma.vocabItem.findMany({
       where: { ownerId },
       orderBy: { createdAt: 'desc' },
       select: {
@@ -88,7 +88,15 @@ export class StudyController {
         semanticTopic: true,
         categoryStatus: true,
         createdAt: true,
-        reviewStates: { where: { userId: ownerId }, select: { due: true, lastReviewedAt: true } },
+        flashcards: {
+          where: { kind: 'IT_TO_RU' },
+          select: {
+            reviewStates: {
+              where: { userId: ownerId },
+              select: { due: true, lastReviewedAt: true },
+            },
+          },
+        },
         materials: {
           select: {
             material: { select: { id: true, title: true, createdAt: true } },
@@ -96,6 +104,10 @@ export class StudyController {
         },
       },
     });
+    return words.map(({ flashcards, ...word }) => ({
+      ...word,
+      reviewStates: flashcards.flatMap((card) => card.reviewStates),
+    }));
   }
 
   @Post('vocabulary/categories/classify')
@@ -146,6 +158,7 @@ export class StudyController {
         translation,
         normalizedMeaning: normaliseMeaning(translation),
         example: example || null,
+        flashcards: { create: { kind: 'IT_TO_RU' } },
       },
       select: { id: true, term: true, translation: true, example: true },
     });
@@ -167,55 +180,69 @@ export class StudyController {
       orderBy: { due: 'asc' },
       take: 40,
       include: {
-        vocabItem: { select: { id: true, term: true, translation: true, example: true } },
+        flashcard: {
+          include: {
+            vocabItem: { select: { term: true, translation: true, example: true } },
+          },
+        },
       },
     });
     const remainingNew = Math.max(0, NEW_PER_DAY - introduced);
     const fresh = remainingNew
-      ? await prisma.vocabItem.findMany({
-          where: { ownerId: userId, reviewStates: { none: { userId } } },
+      ? await prisma.flashcard.findMany({
+          where: {
+            kind: 'IT_TO_RU',
+            vocabItem: { ownerId: userId },
+            reviewStates: { none: { userId } },
+          },
           orderBy: { createdAt: 'asc' },
           take: remainingNew,
-          select: { id: true, term: true, translation: true, example: true },
+          include: {
+            vocabItem: { select: { term: true, translation: true, example: true } },
+          },
         })
       : [];
     return {
       dueCount: due.length,
       newCount: fresh.length,
       cards: [
-        ...due.map((state) => ({ ...state.vocabItem, kind: 'due' as const })),
-        ...fresh.map((item) => ({ ...item, kind: 'new' as const })),
+        ...due.map((state) => ({
+          id: state.flashcard.id,
+          ...state.flashcard.vocabItem,
+          kind: 'due' as const,
+        })),
+        ...fresh.map((card) => ({ id: card.id, ...card.vocabItem, kind: 'new' as const })),
       ],
     };
   }
 
-  @Post('reviews/:vocabId')
+  @Post('reviews/:flashcardId')
   @ApiOperation({ summary: 'Оценить ответ и пересчитать срок по FSRS' })
-  @ApiParam({ name: 'vocabId', description: 'ID слова' })
+  @ApiParam({ name: 'flashcardId', description: 'ID карточки' })
   @ApiBody({ type: RatingInputDto })
   @ApiCreatedResponse({ type: ReviewResultDto })
-  @ApiBadRequestResponse({ description: 'Неверная оценка или слово не найдено' })
+  @ApiBadRequestResponse({ description: 'Неверная оценка или карточка не найдена' })
   @ApiConflictResponse({ description: 'Карточка уже оценена или ещё не готова к повторению' })
   async review(
     @Req() request: Request,
-    @Param('vocabId') vocabId: string,
+    @Param('flashcardId') flashcardId: string,
     @Body() body: { rating?: unknown },
   ) {
     const userId = await this.userId(request);
     const rating = Number(body?.rating);
     if (![Rating.Again, Rating.Hard, Rating.Good, Rating.Easy].includes(rating))
       throw new BadRequestException('Выбери оценку ответа');
-    const vocab = await prisma.vocabItem.findFirst({
-      where: { id: vocabId, ownerId: userId },
+    const flashcard = await prisma.flashcard.findFirst({
+      where: { id: flashcardId, vocabItem: { ownerId: userId } },
       select: { id: true },
     });
-    if (!vocab) throw new BadRequestException('Слово не найдено');
+    if (!flashcard) throw new BadRequestException('Карточка не найдена');
     const now = new Date();
     try {
       return await prisma.$transaction(
         async (tx) => {
           const state = await tx.reviewState.findUnique({
-            where: { userId_vocabItemId: { userId, vocabItemId: vocabId } },
+            where: { userId_flashcardId: { userId, flashcardId } },
           });
           if (state && state.due > now)
             throw new ConflictException('Карточка ещё не готова к повторению');
@@ -235,7 +262,7 @@ export class StudyController {
             : await tx.reviewState.create({
                 data: {
                   userId,
-                  vocabItemId: vocabId,
+                  flashcardId,
                   card: cardJson,
                   due: next.card.due,
                   introducedAt: now,

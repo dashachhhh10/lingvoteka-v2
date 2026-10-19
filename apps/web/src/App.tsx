@@ -14,7 +14,6 @@ import {
   Outlet,
   Route,
   Routes,
-  useLocation,
   useNavigate,
   useSearchParams,
 } from 'react-router-dom';
@@ -423,7 +422,6 @@ const navigation = [
 
 function AppShell() {
   const { data } = authClient.useSession();
-  const location = useLocation();
   return (
     <div className="app-layout">
       <header className="app-header">
@@ -461,7 +459,7 @@ function AppShell() {
       <main className="page-content" id="main">
         <Outlet />
       </main>
-      <PageVine pathname={location.pathname} />
+      <PageVine />
       <nav className="mobile-nav" aria-label="Основная навигация на телефоне">
         {navigation.map((item) => (
           <NavLink
@@ -552,7 +550,7 @@ function TodayPage() {
             <p>Проверь соединение и обнови страницу.</p>
           </div>
         ) : summary === null || materialCount === null ? (
-          <div>
+          <div className="page-vine-loading">
             <h2 id="today-focus-title">Собираем твой план</h2>
             <p>Проверяем материалы и карточки на сегодня.</p>
           </div>

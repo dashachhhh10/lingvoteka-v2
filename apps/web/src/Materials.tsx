@@ -91,7 +91,7 @@ export function MaterialsPage() {
         </p>
       )}
       {loading ? (
-        <p className="subtle">Загружаем материалы…</p>
+        <p className="subtle page-vine-loading">Загружаем материалы…</p>
       ) : items.length === 0 ? (
         <section className="empty-section">
           <div className="empty-mark" aria-hidden="true">
@@ -417,7 +417,7 @@ export function MaterialDetailPage() {
       setPending(false);
     }
   }
-  if (loading) return <p className="subtle">Загружаем материал…</p>;
+  if (loading) return <p className="subtle page-vine-loading">Загружаем материал…</p>;
   if (!material)
     return (
       <>

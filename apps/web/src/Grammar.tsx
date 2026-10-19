@@ -120,7 +120,7 @@ export function GrammarPage() {
         />
       </div>
       {loading ? (
-        <p className="subtle">Загружаем темы…</p>
+        <p className="subtle page-vine-loading">Загружаем темы…</p>
       ) : !topics.length ? (
         <section className="empty-section">
           <div className="empty-mark" aria-hidden="true">
@@ -227,7 +227,7 @@ export function GrammarDetailPage() {
       setPending(false);
     }
   }
-  if (loading) return <p className="subtle">Загружаем тему…</p>;
+  if (loading) return <p className="subtle page-vine-loading">Загружаем тему…</p>;
   if (!topic)
     return (
       <>

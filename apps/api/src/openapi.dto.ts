@@ -156,7 +156,12 @@ export class MaterialReferenceDto {
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
 }
 
-export class ReviewQueueCardDto extends VocabItemDto {
+export class ReviewQueueCardDto {
+  @ApiProperty({ type: String, description: 'ID карточки, используемый для оценки ответа' })
+  id!: string;
+  @ApiProperty({ type: String }) term!: string;
+  @ApiProperty({ type: String }) translation!: string;
+  @ApiProperty({ type: String, nullable: true }) example!: string | null;
   @ApiProperty({ type: String, enum: ['new', 'due'] }) kind!: 'new' | 'due';
 }
 

@@ -328,6 +328,7 @@ export class MaterialsController {
             partOfSpeech,
             semanticTopic,
             categoryStatus: categorized ? 'READY' : 'PENDING',
+            flashcards: { create: { kind: 'IT_TO_RU' } },
           },
           update: {},
         });

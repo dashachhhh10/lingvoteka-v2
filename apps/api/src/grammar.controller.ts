@@ -8,6 +8,7 @@ import {
   Req,
   UnauthorizedException,
   Body,
+  Inject,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
@@ -41,7 +42,7 @@ import {
 @ApiCookieAuth('sessionCookie')
 @ApiUnauthorizedResponse({ description: 'Сессия отсутствует или истекла' })
 export class GrammarController {
-  constructor(private readonly queue: MaterialQueueService) {}
+  constructor(@Inject(MaterialQueueService) private readonly queue: MaterialQueueService) {}
 
   private async ownerId(request: Request) {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });

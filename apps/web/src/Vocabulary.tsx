@@ -221,7 +221,7 @@ export function VocabularyPage() {
         </form>
       )}
       {loading ? (
-        <p className="subtle">Загружаем словарь…</p>
+        <p className="subtle page-vine-loading">Загружаем словарь…</p>
       ) : !items.length ? (
         <section className="empty-section">
           <div className="empty-mark" aria-hidden="true">

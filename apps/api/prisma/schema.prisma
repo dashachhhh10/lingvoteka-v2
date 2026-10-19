@@ -8,20 +8,20 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  theme         String    @default("system")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  materials     Material[]
-  vocabItems    VocabItem[]
-  grammarTopics GrammarTopic[]
-  reviewStates  ReviewState[]
+  id               String            @id
+  name             String
+  email            String            @unique
+  emailVerified    Boolean           @default(false)
+  image            String?
+  theme            String            @default("system")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  sessions         Session[]
+  accounts         Account[]
+  materials        Material[]
+  vocabItems       VocabItem[]
+  grammarTopics    GrammarTopic[]
+  reviewStates     ReviewState[]
   exerciseAttempts ExerciseAttempt[]
 
   @@map("user")
@@ -120,7 +120,7 @@ model VocabItem {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   materials         MaterialVocab[]
-  reviewStates      ReviewState[]
+  flashcards        Flashcard[]
 
   @@unique([ownerId, normalized, normalizedMeaning])
   @@index([ownerId, normalized])
@@ -128,29 +128,29 @@ model VocabItem {
 }
 
 model GrammarTopic {
-  id         String            @id @default(cuid())
-  ownerId    String
-  owner      User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  title      String
-  normalized String
-  summary    String?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  materials  MaterialGrammar[]
-  theory     Json?
-  theoryStatus String @default("NOT_GENERATED")
-  theoryError String?
-  exercises  GrammarExercise[]
+  id           String            @id @default(cuid())
+  ownerId      String
+  owner        User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title        String
+  normalized   String
+  summary      String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  materials    MaterialGrammar[]
+  theory       Json?
+  theoryStatus String            @default("NOT_GENERATED")
+  theoryError  String?
+  exercises    GrammarExercise[]
 
   @@unique([ownerId, normalized])
 }
 
 model MaterialVocab {
-  materialId   String
-  vocabItemId  String
+  materialId    String
+  vocabItemId   String
   sourceExcerpt String?
-  material     Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
-  vocabItem    VocabItem @relation(fields: [vocabItemId], references: [id], onDelete: Cascade)
+  material      Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  vocabItem     VocabItem @relation(fields: [vocabItemId], references: [id], onDelete: Cascade)
 
   @@id([materialId, vocabItemId])
 }
@@ -165,19 +165,30 @@ model MaterialGrammar {
   @@id([materialId, grammarTopicId])
 }
 
+model Flashcard {
+  id           String        @id @default(cuid())
+  vocabItemId  String
+  vocabItem    VocabItem     @relation(fields: [vocabItemId], references: [id], onDelete: Cascade)
+  kind         String        @default("IT_TO_RU")
+  createdAt    DateTime      @default(now())
+  reviewStates ReviewState[]
+
+  @@unique([vocabItemId, kind])
+}
+
 model ReviewState {
   id             String        @id @default(cuid())
   userId         String
-  vocabItemId    String
+  flashcardId    String
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vocabItem      VocabItem     @relation(fields: [vocabItemId], references: [id], onDelete: Cascade)
+  flashcard      Flashcard     @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
   card           Json
   due            DateTime
   introducedAt   DateTime      @default(now())
   lastReviewedAt DateTime      @default(now())
   events         ReviewEvent[]
 
-  @@unique([userId, vocabItemId])
+  @@unique([userId, flashcardId])
   @@index([userId, due])
 }
 
@@ -193,9 +204,9 @@ model ReviewEvent {
 }
 
 model GrammarExercise {
-  id          String             @id @default(cuid())
+  id          String            @id @default(cuid())
   topicId     String
-  topic       GrammarTopic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topic       GrammarTopic      @relation(fields: [topicId], references: [id], onDelete: Cascade)
   position    Int
   prompt      String
   options     Json
