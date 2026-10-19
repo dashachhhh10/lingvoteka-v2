@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
 
@@ -29,20 +30,24 @@ type Check = { correct: boolean; answerIndex: number; answer: string; explanatio
 
 export function GrammarPage() {
   const navigate = useNavigate();
-  const [topics, setTopics] = useState<TopicListItem[]>([]);
+  const queryClient = useQueryClient();
+  const {
+    data: topics = [],
+    isPending: loading,
+    error: loadError,
+  } = useQuery({
+    queryKey: ['grammar'],
+    queryFn: () => api<TopicListItem[]>('/api/grammar'),
+    refetchInterval: (query) =>
+      query.state.data?.some((topic) => topic.theoryStatus === 'GENERATING') ? 3_000 : false,
+  });
   const [query, setQuery] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
-  useEffect(() => {
-    void api<TopicListItem[]>('/api/grammar')
-      .then(setTopics)
-      .catch((reason: Error) => setError(reason.message))
-      .finally(() => setLoading(false));
-  }, []);
+  const displayedError = error || (loadError instanceof Error ? loadError.message : '');
   const shown = useMemo(
     () =>
       topics.filter((topic) =>
@@ -62,6 +67,7 @@ export function GrammarPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, summary }),
       });
+      void queryClient.invalidateQueries({ queryKey: ['grammar'] });
       navigate(`/grammar/${topic.id}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось добавить тему');
@@ -83,9 +89,9 @@ export function GrammarPage() {
           {showAdd ? 'Закрыть' : '+ Добавить тему'}
         </button>
       </div>
-      {error && (
+      {displayedError && (
         <p className="form-message error" role="alert">
-          {error}
+          {displayedError}
         </p>
       )}
       {showAdd && (
@@ -121,7 +127,7 @@ export function GrammarPage() {
       </div>
       {loading ? (
         <p className="subtle page-vine-loading">Загружаем темы…</p>
-      ) : !topics.length ? (
+      ) : loadError && !topics.length ? null : !topics.length ? (
         <section className="empty-section">
           <div className="empty-mark" aria-hidden="true">
             —
@@ -159,46 +165,32 @@ export function GrammarPage() {
 
 export function GrammarDetailPage() {
   const { id } = useParams();
-  const [topic, setTopic] = useState<Topic | null>(null);
+  const queryClient = useQueryClient();
+  const {
+    data: topic = null,
+    isPending: loading,
+    error: loadError,
+  } = useQuery({
+    queryKey: ['grammar', id],
+    queryFn: () => api<Topic>(`/api/grammar/${id}`),
+    enabled: Boolean(id),
+    refetchInterval: (query) => (query.state.data?.theoryStatus === 'GENERATING' ? 3_000 : false),
+  });
   const [tab, setTab] = useState<'theory' | 'practice'>('theory');
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [result, setResult] = useState<Check | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    if (!id) return;
-    let active = true;
-    void api<Topic>(`/api/grammar/${id}`)
-      .then((data) => {
-        if (active) setTopic(data);
-      })
-      .catch((reason: Error) => {
-        if (active) setError(reason.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [id]);
-  useEffect(() => {
-    if (!id || topic?.theoryStatus !== 'GENERATING') return;
-    const timer = window.setInterval(() => {
-      void api<Topic>(`/api/grammar/${id}`)
-        .then(setTopic)
-        .catch(() => {});
-    }, 3000);
-    return () => window.clearInterval(timer);
-  }, [id, topic?.theoryStatus]);
+  const displayedError = error || (loadError instanceof Error ? loadError.message : '');
   async function generate() {
     if (!id) return;
     setPending(true);
     setError('');
     try {
-      setTopic(await api<Topic>(`/api/grammar/${id}/generate`, { method: 'POST' }));
+      const generated = await api<Topic>(`/api/grammar/${id}/generate`, { method: 'POST' });
+      queryClient.setQueryData(['grammar', id], generated);
+      void queryClient.invalidateQueries({ queryKey: ['grammar'], exact: true });
       setExerciseIndex(0);
       setResult(null);
       setSelected(null);
@@ -232,7 +224,7 @@ export function GrammarDetailPage() {
     return (
       <>
         <p className="form-message error" role="alert">
-          {error || 'Тема не найдена'}
+          {displayedError || 'Тема не найдена'}
         </p>
         <Link to="/grammar">К темам</Link>
       </>
@@ -266,12 +258,12 @@ export function GrammarDetailPage() {
           Практика
         </button>
       </div>
-      {error && (
+      {displayedError && (
         <p className="form-message error" role="alert">
-          {error}
+          {displayedError}
         </p>
       )}
-      {topic.theoryError && !error && (
+      {topic.theoryError && !displayedError && (
         <p className="form-message error" role="alert">
           {topic.theoryError}
         </p>

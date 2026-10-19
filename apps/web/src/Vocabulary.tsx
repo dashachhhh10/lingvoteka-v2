@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { api } from './api';
@@ -26,7 +27,17 @@ const wordCount = (count: number) =>
   `${count} ${count % 10 === 1 && count % 100 !== 11 ? 'слово' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'слова' : 'слов'}`;
 
 export function VocabularyPage() {
-  const [items, setItems] = useState<VocabItem[]>([]);
+  const queryClient = useQueryClient();
+  const {
+    data: items = [],
+    isPending: loading,
+    error: loadError,
+  } = useQuery({
+    queryKey: ['vocabulary'],
+    queryFn: () => api<VocabItem[]>('/api/vocabulary'),
+    refetchInterval: (query) =>
+      query.state.data?.some((item) => item.categoryStatus === 'PENDING') ? 5_000 : false,
+  });
   const [query, setQuery] = useState('');
   const [groupBy, setGroupBy] = useState<'semanticTopic' | 'partOfSpeech'>('semanticTopic');
   const [topic, setTopic] = useState('all');
@@ -36,23 +47,8 @@ export function VocabularyPage() {
   const [translation, setTranslation] = useState('');
   const [example, setExample] = useState('');
   const [pending, setPending] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  useEffect(() => {
-    void api<VocabItem[]>('/api/vocabulary')
-      .then(setItems)
-      .catch((reason: Error) => setError(reason.message))
-      .finally(() => setLoading(false));
-  }, []);
-  useEffect(() => {
-    if (!items.some((item) => item.categoryStatus === 'PENDING')) return;
-    const interval = window.setInterval(() => {
-      void api<VocabItem[]>('/api/vocabulary')
-        .then(setItems)
-        .catch(() => undefined);
-    }, 5_000);
-    return () => window.clearInterval(interval);
-  }, [items]);
+  const displayedError = error || (loadError instanceof Error ? loadError.message : '');
   const categoryOf = (item: VocabItem) =>
     item.categoryStatus === 'ERROR'
       ? 'Не удалось определить'
@@ -103,7 +99,8 @@ export function VocabularyPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ term, translation, example }),
       });
-      setItems(await api<VocabItem[]>('/api/vocabulary'));
+      await queryClient.invalidateQueries({ queryKey: ['vocabulary'] });
+      void queryClient.invalidateQueries({ queryKey: ['reviews'] });
       setTerm('');
       setTranslation('');
       setExample('');
@@ -118,7 +115,7 @@ export function VocabularyPage() {
     setError('');
     try {
       await api('/api/vocabulary/categories/classify', { method: 'POST' });
-      setItems(await api<VocabItem[]>('/api/vocabulary'));
+      await queryClient.invalidateQueries({ queryKey: ['vocabulary'] });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось запустить определение тем');
     }
@@ -137,9 +134,9 @@ export function VocabularyPage() {
           Повторять карточки <span aria-hidden="true">↗</span>
         </Link>
       </div>
-      {error && (
+      {displayedError && (
         <p className="form-message error" role="alert">
-          {error}
+          {displayedError}
         </p>
       )}
       <div className="vocab-toolbar">
@@ -222,7 +219,7 @@ export function VocabularyPage() {
       )}
       {loading ? (
         <p className="subtle page-vine-loading">Загружаем словарь…</p>
-      ) : !items.length ? (
+      ) : loadError && !items.length ? null : !items.length ? (
         <section className="empty-section">
           <div className="empty-mark" aria-hidden="true">
             Aa
@@ -293,6 +290,7 @@ export function VocabularyPage() {
 
 export function ReviewPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [queue, setQueue] = useState<Queue | null>(null);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -345,6 +343,10 @@ export function ReviewPage() {
         }),
       ]);
       if (result[1].status === 'rejected') throw result[1].reason;
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['reviews'] }),
+        queryClient.invalidateQueries({ queryKey: ['vocabulary'] }),
+      ]);
       setRevealed(false);
       setIndex((current) => current + 1);
     } catch (reason) {

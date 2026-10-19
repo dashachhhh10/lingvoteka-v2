@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
 import { StaggerList } from './Motion';
@@ -62,15 +63,17 @@ const emptyVocab = (): VocabDraft => ({
 const emptyGrammar = (): GrammarDraft => ({ title: '', summary: '', sourceExcerpt: '' });
 
 export function MaterialsPage() {
-  const [items, setItems] = useState<MaterialListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    void api<MaterialListItem[]>('/api/materials')
-      .then(setItems)
-      .catch((reason: Error) => setError(reason.message))
-      .finally(() => setLoading(false));
-  }, []);
+  const {
+    data: items = [],
+    isPending: loading,
+    error: loadError,
+  } = useQuery({
+    queryKey: ['materials'],
+    queryFn: () => api<MaterialListItem[]>('/api/materials'),
+    refetchInterval: (query) =>
+      query.state.data?.some((item) => item.status === 'PROCESSING') ? 3_000 : false,
+  });
+  const error = loadError instanceof Error ? loadError.message : '';
   return (
     <>
       <div className="page-heading">
@@ -92,7 +95,7 @@ export function MaterialsPage() {
       )}
       {loading ? (
         <p className="subtle page-vine-loading">Загружаем материалы…</p>
-      ) : items.length === 0 ? (
+      ) : loadError && !items.length ? null : items.length === 0 ? (
         <section className="empty-section">
           <div className="empty-mark" aria-hidden="true">
             ＋
@@ -137,6 +140,7 @@ export function MaterialsPage() {
 
 export function NewMaterialPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [autoTitle, setAutoTitle] = useState(false);
@@ -158,6 +162,7 @@ export function NewMaterialPage() {
     for (const file of files) form.append('files', file);
     try {
       const created = await api<{ id: string }>('/api/materials', { method: 'POST', body: form });
+      void queryClient.invalidateQueries({ queryKey: ['materials'] });
       navigate(`/materials/${created.id}?analyze=1`, { replace: true });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось добавить материал');
@@ -295,6 +300,7 @@ export function NewMaterialPage() {
 export function MaterialDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [material, setMaterial] = useState<MaterialDetail | null>(null);
   const [vocabulary, setVocabulary] = useState<VocabDraft[]>([]);
   const [grammar, setGrammar] = useState<GrammarDraft[]>([]);
@@ -362,6 +368,7 @@ export function MaterialDetailPage() {
           if (data.status === 'REVIEW') {
             setVocabulary(data.analysisDraft?.vocabulary ?? []);
             setGrammar(data.analysisDraft?.grammar ?? []);
+            void queryClient.invalidateQueries({ queryKey: ['materials'] });
           }
         })
         .catch(() => {});
@@ -386,6 +393,7 @@ export function MaterialDetailPage() {
           ? { ...current, status: 'PROCESSING', analysisDraft: null, analysisError: null }
           : current,
       );
+      void queryClient.invalidateQueries({ queryKey: ['materials'] });
       setVocabulary([]);
       setGrammar([]);
     } catch (reason) {
@@ -411,6 +419,12 @@ export function MaterialDetailPage() {
         /* Optional cache. */
       }
       setMaterial(data);
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['materials'] }),
+        queryClient.invalidateQueries({ queryKey: ['vocabulary'] }),
+        queryClient.invalidateQueries({ queryKey: ['grammar'] }),
+        queryClient.invalidateQueries({ queryKey: ['reviews'] }),
+      ]);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось сохранить');
     } finally {

@@ -1,12 +1,6 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from 'react';
+import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import gsap from 'gsap';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import {
   Link,
   Navigate,
@@ -47,7 +41,22 @@ function BusyScreen() {
 function RequireSession() {
   const { data, isPending } = authClient.useSession();
   if (isPending) return <BusyScreen />;
-  return data?.user ? <Outlet /> : <Navigate to="/login" replace />;
+  return data?.user ? (
+    <AuthenticatedContent key={data.user.id} />
+  ) : (
+    <Navigate to="/login" replace />
+  );
+}
+
+function AuthenticatedContent() {
+  const [queryClient] = useState(
+    () => new QueryClient({ defaultOptions: { queries: { retry: 1 } } }),
+  );
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Outlet />
+    </QueryClientProvider>
+  );
 }
 
 function GuestOnly() {
@@ -522,17 +531,18 @@ function TodayCardPreview({ term }: { term: string }) {
 function TodayPage() {
   const { data } = authClient.useSession();
   const firstName = data?.user?.name?.trim().split(/\s+/)[0];
-  const [summary, setSummary] = useState<TodaySummary | null>(null);
-  const [materialCount, setMaterialCount] = useState<number | null>(null);
-  const [loadError, setLoadError] = useState(false);
-  useEffect(() => {
-    void api<TodaySummary>('/api/reviews/queue')
-      .then(setSummary)
-      .catch(() => setLoadError(true));
-    void api<unknown[]>('/api/materials')
-      .then((items) => setMaterialCount(items.length))
-      .catch(() => setLoadError(true));
-  }, []);
+  const queueQuery = useQuery({
+    queryKey: ['reviews', 'queue'],
+    queryFn: () => api<TodaySummary>('/api/reviews/queue'),
+  });
+  const materialsQuery = useQuery({
+    queryKey: ['materials'],
+    queryFn: () => api<unknown[]>('/api/materials'),
+  });
+  const summary = queueQuery.data ?? null;
+  const materialCount = materialsQuery.data?.length ?? null;
+  const loadError =
+    (queueQuery.isError && !queueQuery.data) || (materialsQuery.isError && !materialsQuery.data);
   const available = (summary?.dueCount ?? 0) + (summary?.newCount ?? 0);
   return (
     <>
