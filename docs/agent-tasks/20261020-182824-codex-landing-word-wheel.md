@@ -28,4 +28,4 @@
 
 ## Git и публикация
 
-Коммит `88d9ee5` опубликован в `origin/codex/landing-word-wheel`. Ветка создана от `origin/dev`; слияния и деплоя не было. Worktree был чистым на старте.
+Коммит `88d9ee5` опубликован в `origin/codex/landing-word-wheel`; запись о передаче — `6534c31`. Черновой PR [#1](https://github.com/dashachhhh10/lingvoteka-v2/pull/1) направлен в `dev`, проверки Vercel в PR завершились успешно. Ветка создана от `origin/dev`; слияния и production-деплоя не было. Worktree был чистым на старте.
