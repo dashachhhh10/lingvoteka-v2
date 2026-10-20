@@ -4,8 +4,8 @@ import { emailDeliveryConfigured, sendEmail } from '../src/email.js';
 
 const originalEnv = {
   EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
-  BREVO_API_KEY: process.env.BREVO_API_KEY,
-  BREVO_SENDER_EMAIL: process.env.BREVO_SENDER_EMAIL,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  RESEND_FROM: process.env.RESEND_FROM,
   EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
 };
 const originalFetch = globalThis.fetch;
@@ -18,26 +18,26 @@ after(() => {
   globalThis.fetch = originalFetch;
 });
 
-test('Brevo sends a password-reset email with a separate Reply-To address', async () => {
-  process.env.EMAIL_PROVIDER = 'brevo';
-  process.env.BREVO_API_KEY = 'test-api-key';
-  process.env.BREVO_SENDER_EMAIL = 'sender@example.com';
+test('Resend sends a password-reset email with a separate Reply-To address', async () => {
+  process.env.EMAIL_PROVIDER = 'resend';
+  process.env.RESEND_API_KEY = 'test-api-key';
+  process.env.RESEND_FROM = 'Lingvoteka <sender@example.com>';
   process.env.EMAIL_REPLY_TO = 'reply@example.com';
 
   let calls = 0;
   globalThis.fetch = async (url, options) => {
     calls++;
-    assert.equal(url, 'https://api.brevo.com/v3/smtp/email');
+    assert.equal(url, 'https://api.resend.com/emails');
     assert.equal(options?.method, 'POST');
-    assert.equal(new Headers(options?.headers).get('api-key'), 'test-api-key');
+    assert.equal(new Headers(options?.headers).get('authorization'), 'Bearer test-api-key');
     assert.deepEqual(JSON.parse(String(options?.body)), {
-      sender: { name: 'Lingvoteka', email: 'sender@example.com' },
-      to: [{ email: 'student@example.com' }],
-      replyTo: { email: 'reply@example.com' },
+      from: 'Lingvoteka <sender@example.com>',
+      to: ['student@example.com'],
+      reply_to: 'reply@example.com',
       subject: 'Сброс пароля',
-      textContent: 'Ссылка для сброса',
+      text: 'Ссылка для сброса',
     });
-    return new Response(JSON.stringify({ messageId: 'test-message' }), { status: 201 });
+    return new Response(JSON.stringify({ id: 'test-message' }), { status: 200 });
   };
 
   assert.equal(emailDeliveryConfigured(), true);
@@ -49,7 +49,7 @@ test('Brevo sends a password-reset email with a separate Reply-To address', asyn
   assert.equal(calls, 1);
 });
 
-test('Brevo rejection does not expose the API response', async () => {
+test('Resend rejection does not expose the API response', async () => {
   globalThis.fetch = async () => new Response('secret provider details', { status: 401 });
   await assert.rejects(
     sendEmail({ to: 'student@example.com', subject: 'Сброс пароля', text: 'Ссылка' }),

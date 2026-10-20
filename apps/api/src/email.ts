@@ -9,10 +9,12 @@ type EmailInput = {
 let smtpVerified = false;
 
 export function emailDeliveryConfigured(): boolean {
-  if (process.env.EMAIL_PROVIDER === 'brevo') {
-    return Boolean(process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL);
+  if (process.env.EMAIL_PROVIDER === 'resend') {
+    return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM);
   }
-  return smtpConfigured();
+  return !process.env.EMAIL_PROVIDER || process.env.EMAIL_PROVIDER === 'smtp'
+    ? smtpConfigured()
+    : false;
 }
 
 export function smtpConfigured(): boolean {
@@ -39,9 +41,9 @@ function previewDevelopmentEmail(input: EmailInput): void {
 }
 
 export async function initializeEmailDelivery(): Promise<void> {
-  if (process.env.EMAIL_PROVIDER === 'brevo') {
-    if (!emailDeliveryConfigured()) throw new Error('Brevo delivery settings are incomplete');
-    console.info('Brevo HTTPS email delivery configured');
+  if (process.env.EMAIL_PROVIDER === 'resend') {
+    if (!emailDeliveryConfigured()) throw new Error('Resend delivery settings are incomplete');
+    console.info('Resend HTTPS email delivery configured');
     return;
   }
   if (!smtpConfigured()) return;
@@ -59,8 +61,8 @@ export async function initializeEmailDelivery(): Promise<void> {
 }
 
 export async function sendEmail(input: EmailInput): Promise<void> {
-  if (process.env.EMAIL_PROVIDER === 'brevo') {
-    await sendBrevoEmail(input);
+  if (process.env.EMAIL_PROVIDER === 'resend') {
+    await sendResendEmail(input);
     return;
   }
   if (!smtpVerified) {
@@ -101,33 +103,33 @@ export async function sendEmail(input: EmailInput): Promise<void> {
   }
 }
 
-async function sendBrevoEmail(input: EmailInput): Promise<void> {
-  if (!emailDeliveryConfigured()) throw new Error('Brevo delivery settings are incomplete');
+async function sendResendEmail(input: EmailInput): Promise<void> {
+  if (!emailDeliveryConfigured()) throw new Error('Resend delivery settings are incomplete');
   let response: Response;
   try {
-    response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'api-key': process.env.BREVO_API_KEY!,
+        authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         'content-type': 'application/json',
         accept: 'application/json',
       },
       body: JSON.stringify({
-        sender: { name: 'Lingvoteka', email: process.env.BREVO_SENDER_EMAIL },
-        to: [{ email: input.to }],
-        replyTo: process.env.EMAIL_REPLY_TO ? { email: process.env.EMAIL_REPLY_TO } : undefined,
+        from: process.env.RESEND_FROM,
+        to: [input.to],
+        reply_to: process.env.EMAIL_REPLY_TO || undefined,
         subject: input.subject,
-        textContent: input.text,
+        text: input.text,
       }),
       signal: AbortSignal.timeout(10_000),
     });
   } catch (error) {
-    console.warn('Brevo HTTPS request failed', error instanceof Error ? error.name : 'unknown');
+    console.warn('Resend HTTPS request failed', error instanceof Error ? error.name : 'unknown');
     throw new Error('Email delivery is unavailable');
   }
   if (!response.ok) {
-    console.warn('Brevo rejected email', response.status);
+    console.warn('Resend rejected email', response.status);
     throw new Error('Email delivery was rejected');
   }
-  console.info('Brevo accepted email for delivery');
+  console.info('Resend accepted email for delivery');
 }
