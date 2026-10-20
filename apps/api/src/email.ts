@@ -18,6 +18,9 @@ function createTransport() {
     host: process.env.SMTP_HOST,
     port,
     secure: port === 465,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 10_000,
     auth: process.env.SMTP_USER
       ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
       : undefined,
@@ -38,7 +41,6 @@ export async function initializeEmailDelivery(): Promise<void> {
   } catch (error) {
     const detail = error as { code?: string; responseCode?: number };
     console.warn('SMTP unavailable', detail.code ?? 'unknown', detail.responseCode ?? '');
-    if (process.env.NODE_ENV === 'production') throw error;
   } finally {
     transport.close();
   }
