@@ -28,4 +28,4 @@
 
 ## Git и публикация
 
-Ветка codex/landing-word-wheel создана локально от origin/dev; push и деплой отмечаются отдельно. Worktree был чистым на старте.
+Коммит `88d9ee5` опубликован в `origin/codex/landing-word-wheel`. Ветка создана от `origin/dev`; слияния и деплоя не было. Worktree был чистым на старте.
