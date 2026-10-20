@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
@@ -27,6 +27,8 @@ type Topic = {
   exercises: { id: string; position: number; prompt: string; options: string[] }[];
 };
 type Check = { correct: boolean; answerIndex: number; answer: string; explanation: string };
+const theoryFieldClass =
+  'w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink outline-none focus-visible:outline-2 focus-visible:outline-action';
 
 export function GrammarPage() {
   const navigate = useNavigate();
@@ -182,9 +184,14 @@ export function GrammarDetailPage() {
   const [result, setResult] = useState<Check | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [theoryDraft, setTheoryDraft] = useState<Theory | null>(null);
   const theoryTabRef = useRef<HTMLButtonElement>(null);
   const practiceTabRef = useRef<HTMLButtonElement>(null);
+  const editTheoryButtonRef = useRef<HTMLButtonElement>(null);
   const displayedError = error || (loadError instanceof Error ? loadError.message : '');
+  useEffect(() => {
+    setTheoryDraft(null);
+  }, [id]);
   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     let nextTab: 'theory' | 'practice';
     if (event.key === 'Home') nextTab = 'theory';
@@ -228,6 +235,26 @@ export function GrammarDetailPage() {
       );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось проверить ответ');
+    } finally {
+      setPending(false);
+    }
+  }
+  async function saveTheory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!id || !theoryDraft) return;
+    setPending(true);
+    setError('');
+    try {
+      const updated = await api<Topic>(`/api/grammar/${id}/theory`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(theoryDraft),
+      });
+      queryClient.setQueryData(['grammar', id], updated);
+      setTheoryDraft(null);
+      requestAnimationFrame(() => editTheoryButtonRef.current?.focus());
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Не удалось сохранить объяснение');
     } finally {
       setPending(false);
     }
@@ -303,33 +330,233 @@ export function GrammarDetailPage() {
           {topic.theory ? (
             <>
               <p className="ai-label">
-                ✦ Объяснение создано AI. Проверяй формулировки по учебным материалам.
+                ✦ Исходное объяснение создано AI. Формулировки можно исправить вручную.
               </p>
-              <section>
-                <h2>Когда используется</h2>
-                <p>{topic.theory.when}</p>
-              </section>
-              <section>
-                <h2>Как образуется</h2>
-                <p>{topic.theory.formation}</p>
-              </section>
-              <section>
-                <h2>Примеры</h2>
-                {topic.theory.examples.map((example, index) => (
-                  <p className="grammar-example" key={index}>
-                    <em lang="it">{example.italian}</em>
-                    <span>{example.russian}</span>
+              {theoryDraft ? (
+                <form className="mt-5 grid gap-6" onSubmit={(event) => void saveTheory(event)}>
+                  <label className="grid gap-2 font-semibold">
+                    Когда используется
+                    <textarea
+                      className={theoryFieldClass}
+                      rows={4}
+                      maxLength={2000}
+                      required
+                      value={theoryDraft.when}
+                      onChange={(event) =>
+                        setTheoryDraft({ ...theoryDraft, when: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="grid gap-2 font-semibold">
+                    Как образуется
+                    <textarea
+                      className={theoryFieldClass}
+                      rows={4}
+                      maxLength={2000}
+                      required
+                      value={theoryDraft.formation}
+                      onChange={(event) =>
+                        setTheoryDraft({ ...theoryDraft, formation: event.target.value })
+                      }
+                    />
+                  </label>
+                  <div className="grid gap-3">
+                    <h2>Примеры</h2>
+                    {theoryDraft.examples.map((example, index) => (
+                      <div
+                        className="grid gap-2 rounded-card border border-line bg-surface p-4"
+                        key={index}
+                      >
+                        <label className="grid gap-1.5 text-sm font-semibold">
+                          Итальянский пример {index + 1}
+                          <input
+                            className={theoryFieldClass}
+                            lang="it"
+                            maxLength={400}
+                            required
+                            value={example.italian}
+                            onChange={(event) =>
+                              setTheoryDraft({
+                                ...theoryDraft,
+                                examples: theoryDraft.examples.map((item, itemIndex) =>
+                                  itemIndex === index
+                                    ? { ...item, italian: event.target.value }
+                                    : item,
+                                ),
+                              })
+                            }
+                          />
+                        </label>
+                        <label className="grid gap-1.5 text-sm font-semibold">
+                          Перевод
+                          <input
+                            className={theoryFieldClass}
+                            maxLength={400}
+                            required
+                            value={example.russian}
+                            onChange={(event) =>
+                              setTheoryDraft({
+                                ...theoryDraft,
+                                examples: theoryDraft.examples.map((item, itemIndex) =>
+                                  itemIndex === index
+                                    ? { ...item, russian: event.target.value }
+                                    : item,
+                                ),
+                              })
+                            }
+                          />
+                        </label>
+                        {theoryDraft.examples.length > 1 && (
+                          <button
+                            className="text-button justify-self-start"
+                            type="button"
+                            onClick={() =>
+                              setTheoryDraft({
+                                ...theoryDraft,
+                                examples: theoryDraft.examples.filter(
+                                  (_, itemIndex) => itemIndex !== index,
+                                ),
+                              })
+                            }
+                          >
+                            Удалить пример
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {theoryDraft.examples.length < 4 && (
+                      <button
+                        className="secondary-button justify-self-start"
+                        type="button"
+                        onClick={() =>
+                          setTheoryDraft({
+                            ...theoryDraft,
+                            examples: [...theoryDraft.examples, { italian: '', russian: '' }],
+                          })
+                        }
+                      >
+                        + Добавить пример
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid gap-3">
+                    <h2>Частые ошибки</h2>
+                    {theoryDraft.mistakes.map((mistake, index) => (
+                      <div className="flex flex-wrap items-start gap-2" key={index}>
+                        <label className="min-w-48 flex-1 text-sm font-semibold">
+                          <span className="sr-only">Ошибка {index + 1}</span>
+                          <input
+                            className={theoryFieldClass}
+                            maxLength={400}
+                            required
+                            value={mistake}
+                            onChange={(event) =>
+                              setTheoryDraft({
+                                ...theoryDraft,
+                                mistakes: theoryDraft.mistakes.map((item, itemIndex) =>
+                                  itemIndex === index ? event.target.value : item,
+                                ),
+                              })
+                            }
+                          />
+                        </label>
+                        <button
+                          className="text-button min-h-11"
+                          type="button"
+                          aria-label={`Удалить ошибку ${index + 1}`}
+                          onClick={() =>
+                            setTheoryDraft({
+                              ...theoryDraft,
+                              mistakes: theoryDraft.mistakes.filter(
+                                (_, itemIndex) => itemIndex !== index,
+                              ),
+                            })
+                          }
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    ))}
+                    {theoryDraft.mistakes.length < 4 && (
+                      <button
+                        className="secondary-button justify-self-start"
+                        type="button"
+                        onClick={() =>
+                          setTheoryDraft({
+                            ...theoryDraft,
+                            mistakes: [...theoryDraft.mistakes, ''],
+                          })
+                        }
+                      >
+                        + Добавить ошибку
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted">
+                    Упражнения сохранятся без изменений; если правило исправлено, проверь их ответы.
                   </p>
-                ))}
-              </section>
-              <section>
-                <h2>Частые ошибки</h2>
-                <ul>
-                  {topic.theory.mistakes.map((mistake, index) => (
-                    <li key={index}>{mistake}</li>
-                  ))}
-                </ul>
-              </section>
+                  <div className="flex flex-wrap gap-3">
+                    <button className="primary-button" type="submit" disabled={pending}>
+                      {pending ? 'Сохраняем…' : 'Сохранить исправления'}
+                    </button>
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        setTheoryDraft(null);
+                        requestAnimationFrame(() => editTheoryButtonRef.current?.focus());
+                      }}
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <button
+                    ref={editTheoryButtonRef}
+                    className="secondary-button mt-4"
+                    type="button"
+                    onClick={() =>
+                      setTheoryDraft({
+                        ...topic.theory!,
+                        examples: topic.theory!.examples.length
+                          ? topic.theory!.examples.map((example) => ({ ...example }))
+                          : [{ italian: '', russian: '' }],
+                        mistakes: [...topic.theory!.mistakes],
+                      })
+                    }
+                  >
+                    Исправить объяснение
+                  </button>
+                  <section>
+                    <h2>Когда используется</h2>
+                    <p>{topic.theory.when}</p>
+                  </section>
+                  <section>
+                    <h2>Как образуется</h2>
+                    <p>{topic.theory.formation}</p>
+                  </section>
+                  <section>
+                    <h2>Примеры</h2>
+                    {topic.theory.examples.map((example, index) => (
+                      <p className="grammar-example" key={index}>
+                        <em lang="it">{example.italian}</em>
+                        <span>{example.russian}</span>
+                      </p>
+                    ))}
+                  </section>
+                  <section>
+                    <h2>Частые ошибки</h2>
+                    <ul>
+                      {topic.theory.mistakes.map((mistake, index) => (
+                        <li key={index}>{mistake}</li>
+                      ))}
+                    </ul>
+                  </section>
+                </>
+              )}
             </>
           ) : (
             <div className="theory-placeholder">

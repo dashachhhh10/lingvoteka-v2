@@ -4,6 +4,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Req,
   UnauthorizedException,
@@ -25,6 +26,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Prisma } from '@prisma/client';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
 import { MaterialQueueService } from './material-queue.js';
@@ -35,7 +37,38 @@ import {
   GrammarCreatedDto,
   GrammarDetailDto,
   GrammarListItemDto,
+  GrammarTheoryDto,
 } from './openapi.dto.js';
+
+function theoryText(value: unknown, maxLength: number): string {
+  if (typeof value !== 'string' || !value.trim() || value.trim().length > maxLength)
+    throw new BadRequestException('Проверь заполнение и длину текста теории');
+  return value.trim();
+}
+
+function editableTheory(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new BadRequestException('Передай теорию для сохранения');
+  const theory = value as Record<string, unknown>;
+  if (!Array.isArray(theory.examples) || theory.examples.length < 1 || theory.examples.length > 4)
+    throw new BadRequestException('Добавь от одного до четырёх примеров');
+  if (!Array.isArray(theory.mistakes) || theory.mistakes.length > 4)
+    throw new BadRequestException('Укажи не больше четырёх частых ошибок');
+  return {
+    when: theoryText(theory.when, 2000),
+    formation: theoryText(theory.formation, 2000),
+    examples: theory.examples.map((item: unknown) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item))
+        throw new BadRequestException('Проверь примеры теории');
+      const example = item as Record<string, unknown>;
+      return {
+        italian: theoryText(example.italian, 400),
+        russian: theoryText(example.russian, 400),
+      };
+    }),
+    mistakes: theory.mistakes.map((item: unknown) => theoryText(item, 400)),
+  };
+}
 
 @Controller('grammar')
 @ApiTags('Грамматика')
@@ -113,6 +146,25 @@ export class GrammarController {
   @ApiNotFoundResponse({ description: 'Тема не принадлежит текущему пользователю' })
   async detail(@Req() request: Request, @Param('id') id: string) {
     return this.topic(id, await this.ownerId(request));
+  }
+
+  @Patch(':id/theory')
+  @ApiOperation({ summary: 'Исправить свою созданную AI-теорию вручную' })
+  @ApiParam({ name: 'id', description: 'ID темы' })
+  @ApiBody({ type: GrammarTheoryDto })
+  @ApiOkResponse({ type: GrammarDetailDto })
+  @ApiBadRequestResponse({ description: 'Теория ещё не готова или неверно заполнена' })
+  @ApiNotFoundResponse({ description: 'Тема не принадлежит текущему пользователю' })
+  async editTheory(@Req() request: Request, @Param('id') id: string, @Body() body: unknown) {
+    const ownerId = await this.ownerId(request);
+    await this.topic(id, ownerId);
+    const theory = editableTheory(body);
+    const updated = await prisma.grammarTopic.updateMany({
+      where: { id, ownerId, theoryStatus: 'READY' },
+      data: { theory: theory as Prisma.InputJsonValue },
+    });
+    if (!updated.count) throw new BadRequestException('Сначала создай объяснение');
+    return this.topic(id, ownerId);
   }
 
   @Post(':id/generate')
