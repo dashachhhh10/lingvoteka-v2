@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:storage": "tsx --test test/file-storage.test.ts",
+    "test:email": "node --import tsx --test test/email-delivery.test.ts",
     "test:formats": "tsx --test test/material-formats.test.ts",
     "test:flow": "tsx test/full-flow.smoke.ts",
     "test:image-flow": "tsx test/image-flow.smoke.ts",

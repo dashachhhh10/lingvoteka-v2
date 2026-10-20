@@ -10,7 +10,7 @@ import { AppModule } from './app.module.js';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
 import { validateFileStorage } from './file-storage.js';
-import { initializeEmailDelivery, smtpConfigured } from './email.js';
+import { emailDeliveryConfigured, initializeEmailDelivery } from './email.js';
 
 async function bootstrap() {
   validateFileStorage();
@@ -18,8 +18,8 @@ async function bootstrap() {
   if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32) {
     throw new Error('BETTER_AUTH_SECRET must be at least 32 characters');
   }
-  if (process.env.NODE_ENV === 'production' && !smtpConfigured()) {
-    throw new Error('SMTP delivery settings are incomplete in production');
+  if (process.env.NODE_ENV === 'production' && !emailDeliveryConfigured()) {
+    throw new Error('Email delivery settings are incomplete in production');
   }
   if (process.env.NODE_ENV === 'production' && !process.env.REGISTRATION_INVITE_CODE) {
     throw new Error('REGISTRATION_INVITE_CODE is required in production');
