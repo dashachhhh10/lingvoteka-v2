@@ -1,9 +1,9 @@
 # Редактирование AI-теории на этапе 5
 
-- Статус: active
+- Статус: done
 - Агент: Codex
 - Задача/сессия: 01a0fb6a-6124-77c1-9219-42199dcb9516-grammar-theory-edit
-- Обновлено: 2026-10-21T00:52:35+08:00
+- Обновлено: 2026-10-21T00:58:05+08:00
 - Рабочая папка: /Users/dashachikunova/Lingvoteka
 - Ветка: dev
 - Планируемые файлы: эта запись, docs/roadmap.md, apps/api/src/grammar.controller.ts, apps/api/package.json, apps/api/test/grammar-theory-edit.smoke.ts, apps/web/src/Grammar.tsx. Чужие незакоммиченные README.md, docs/project-context.md и старую запись этапа 5 не менять.
@@ -28,4 +28,4 @@
 
 ## Git и публикация
 
-Стартовый HEAD `6eb7df7`; ветка dev. На 00:52 изменения этой задачи ещё не коммичены; чужие незакоммиченные README, project-context, AGENTS/CLAUDE и прежнюю запись этапа 5 не включать.
+Стартовый HEAD `6eb7df7`; ветка dev. Правка зафиксирована коммитом `121cf46` и отправлена в `origin/dev`. Для него Vercel, Railway API и worker получили `success`. Публичный `/api/health` ответил `{"status":"ok"}`; новый `PATCH /api/grammar/nonexistent/theory` без сессии вернул 401, значит маршрут присутствует и защищён. Чужие незакоммиченные README, project-context, AGENTS/CLAUDE и прежняя запись этапа 5 не включались. После начала этой задачи появился новый активный файл другой задачи `20261021-005301-codex-floating-navigation.md`; её App.tsx и components уже меняются параллельно, их не трогать и не включать в свой коммит.
