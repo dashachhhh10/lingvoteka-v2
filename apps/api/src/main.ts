@@ -10,7 +10,11 @@ import { AppModule } from './app.module.js';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
 import { validateFileStorage } from './file-storage.js';
-import { emailDeliveryConfigured, initializeEmailDelivery } from './email.js';
+import {
+  emailDeliveryConfigured,
+  initializeEmailDelivery,
+  passwordResetAvailable,
+} from './email.js';
 
 async function bootstrap() {
   validateFileStorage();
@@ -18,7 +22,11 @@ async function bootstrap() {
   if (!process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET.length < 32) {
     throw new Error('BETTER_AUTH_SECRET must be at least 32 characters');
   }
-  if (process.env.NODE_ENV === 'production' && !emailDeliveryConfigured()) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    passwordResetAvailable() &&
+    !emailDeliveryConfigured()
+  ) {
     throw new Error('Email delivery settings are incomplete in production');
   }
   if (process.env.NODE_ENV === 'production' && !process.env.REGISTRATION_INVITE_CODE) {
@@ -29,6 +37,15 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
   const expressApp = app.getHttpAdapter().getInstance() as express.Express;
+  expressApp.use('/api/auth/request-password-reset', (_request, response, next) => {
+    if (passwordResetAvailable()) return next();
+    response
+      .status(503)
+      .json({
+        code: 'PASSWORD_RESET_DISABLED',
+        message: 'Восстановление пароля временно недоступно',
+      });
+  });
   expressApp.use('/api/auth/sign-up/email', (request, response, next) => {
     const configured = process.env.REGISTRATION_INVITE_CODE;
     if (!configured) return next();

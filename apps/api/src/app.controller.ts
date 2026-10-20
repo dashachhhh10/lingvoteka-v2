@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
+import { passwordResetAvailable } from './email.js';
 import { ThemeInputDto, UserResponseDto } from './openapi.dto.js';
 
 type Theme = 'light' | 'dark';
@@ -26,6 +27,11 @@ type Theme = 'light' | 'dark';
 @Controller()
 @ApiTags('Сервис и аккаунт')
 export class AppController {
+  @Get('capabilities')
+  capabilities() {
+    return { passwordResetAvailable: passwordResetAvailable() };
+  }
+
   @Get('health')
   @ApiOperation({ summary: 'Проверить доступность API' })
   @ApiOkResponse({

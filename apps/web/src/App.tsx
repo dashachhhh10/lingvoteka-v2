@@ -1,4 +1,11 @@
-import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import gsap from 'gsap';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import {
@@ -156,8 +163,27 @@ function PasswordInput({
   );
 }
 
+function usePasswordResetAvailable(): boolean | null {
+  const [available, setAvailable] = useState<boolean | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    void api<{ passwordResetAvailable: boolean }>('/api/capabilities')
+      .then((result) => {
+        if (mounted) setAvailable(result.passwordResetAvailable);
+      })
+      .catch(() => {
+        if (mounted) setAvailable(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  return available;
+}
+
 function LoginPage() {
   const navigate = useNavigate();
+  const passwordResetAvailable = usePasswordResetAvailable();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
@@ -204,7 +230,7 @@ function LoginPage() {
         />
         <div className="label-row">
           <label htmlFor="login-password">Пароль</label>
-          <Link to="/forgot-password">Забыли пароль?</Link>
+          {passwordResetAvailable && <Link to="/forgot-password">Забыли пароль?</Link>}
         </div>
         <PasswordInput
           id="login-password"
@@ -320,6 +346,7 @@ function RegisterPage() {
 }
 
 function ForgotPasswordPage() {
+  const passwordResetAvailable = usePasswordResetAvailable();
   const [email, setEmail] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -346,31 +373,40 @@ function ForgotPasswordPage() {
   return (
     <AuthFrame
       title="Восстановить доступ"
-      description="Отправим ссылку для создания нового пароля."
+      description={
+        passwordResetAvailable === null
+          ? 'Проверяем доступность восстановления…'
+          : passwordResetAvailable
+            ? 'Отправим ссылку для создания нового пароля.'
+            : 'Восстановление пароля временно недоступно.'
+      }
       footer={<Link to="/login">Вернуться ко входу</Link>}
     >
-      <form onSubmit={(event) => void submit(event)}>
-        <label htmlFor="forgot-email">Электронная почта</label>
-        <input
-          id="forgot-email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-        <FormMessage error={error} success={success} />
-        <button className="primary-button" type="submit" disabled={pending}>
-          {pending ? 'Отправляем…' : 'Отправить ссылку'}
-        </button>
-      </form>
+      {passwordResetAvailable ? (
+        <form onSubmit={(event) => void submit(event)}>
+          <label htmlFor="forgot-email">Электронная почта</label>
+          <input
+            id="forgot-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <FormMessage error={error} success={success} />
+          <button className="primary-button" type="submit" disabled={pending}>
+            {pending ? 'Отправляем…' : 'Отправить ссылку'}
+          </button>
+        </form>
+      ) : null}
     </AuthFrame>
   );
 }
 
 function ResetPasswordPage() {
   const [params] = useSearchParams();
+  const passwordResetAvailable = usePasswordResetAvailable();
   const token = params.get('token');
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
@@ -417,7 +453,7 @@ function ResetPasswordPage() {
       ) : (
         <div>
           <FormMessage error="В ссылке нет кода восстановления." />
-          <Link to="/forgot-password">Запросить новую ссылку</Link>
+          {passwordResetAvailable && <Link to="/forgot-password">Запросить новую ссылку</Link>}
         </div>
       )}
     </AuthFrame>
@@ -637,7 +673,7 @@ function ProfilePage() {
         <section className="settings-row">
           <div>
             <h2>Почта</h2>
-            <p>Адрес для входа и восстановления доступа</p>
+            <p>Адрес для входа</p>
           </div>
           <strong>{data?.user?.email}</strong>
         </section>

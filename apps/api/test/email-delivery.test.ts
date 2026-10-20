@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
-import { emailDeliveryConfigured, sendEmail } from '../src/email.js';
+import { emailDeliveryConfigured, passwordResetAvailable, sendEmail } from '../src/email.js';
 
 const originalEnv = {
   EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
@@ -54,5 +54,17 @@ test('Resend rejection does not expose the API response', async () => {
   await assert.rejects(
     sendEmail({ to: 'student@example.com', subject: 'Сброс пароля', text: 'Ссылка' }),
     { message: 'Email delivery was rejected' },
+  );
+});
+
+test('disabled email mode keeps startup valid without sending messages', async () => {
+  process.env.EMAIL_PROVIDER = 'disabled';
+  delete process.env.RESEND_API_KEY;
+  delete process.env.RESEND_FROM;
+  assert.equal(emailDeliveryConfigured(), false);
+  assert.equal(passwordResetAvailable(), false);
+  await assert.rejects(
+    sendEmail({ to: 'student@example.com', subject: 'Сброс пароля', text: 'Ссылка' }),
+    { message: 'Email delivery is disabled' },
   );
 });
