@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
@@ -182,7 +182,20 @@ export function GrammarDetailPage() {
   const [result, setResult] = useState<Check | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const theoryTabRef = useRef<HTMLButtonElement>(null);
+  const practiceTabRef = useRef<HTMLButtonElement>(null);
   const displayedError = error || (loadError instanceof Error ? loadError.message : '');
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    let nextTab: 'theory' | 'practice';
+    if (event.key === 'Home') nextTab = 'theory';
+    else if (event.key === 'End') nextTab = 'practice';
+    else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft')
+      nextTab = tab === 'theory' ? 'practice' : 'theory';
+    else return;
+    event.preventDefault();
+    setTab(nextTab);
+    (nextTab === 'theory' ? theoryTabRef : practiceTabRef).current?.focus();
+  }
   async function generate() {
     if (!id) return;
     setPending(true);
@@ -240,20 +253,30 @@ export function GrammarDetailPage() {
       {topic.summary && <p className="page-lead">{topic.summary}</p>}
       <div className="topic-tabs" role="tablist" aria-label="Раздел темы">
         <button
+          ref={theoryTabRef}
+          id="grammar-tab-theory"
           type="button"
           role="tab"
           aria-selected={tab === 'theory'}
+          aria-controls="grammar-panel-theory"
+          tabIndex={tab === 'theory' ? 0 : -1}
           className={tab === 'theory' ? 'active' : ''}
           onClick={() => setTab('theory')}
+          onKeyDown={handleTabKeyDown}
         >
           Теория
         </button>
         <button
+          ref={practiceTabRef}
+          id="grammar-tab-practice"
           type="button"
           role="tab"
           aria-selected={tab === 'practice'}
+          aria-controls="grammar-panel-practice"
+          tabIndex={tab === 'practice' ? 0 : -1}
           className={tab === 'practice' ? 'active' : ''}
           onClick={() => setTab('practice')}
+          onKeyDown={handleTabKeyDown}
         >
           Практика
         </button>
@@ -268,8 +291,15 @@ export function GrammarDetailPage() {
           {topic.theoryError}
         </p>
       )}
-      {tab === 'theory' ? (
-        <div className="theory-content">
+      <>
+        <div
+          id="grammar-panel-theory"
+          className="theory-content"
+          role="tabpanel"
+          aria-labelledby="grammar-tab-theory"
+          tabIndex={0}
+          hidden={tab !== 'theory'}
+        >
           {topic.theory ? (
             <>
               <p className="ai-label">
@@ -337,8 +367,14 @@ export function GrammarDetailPage() {
             </section>
           )}
         </div>
-      ) : (
-        <div className="practice-content">
+        <div
+          id="grammar-panel-practice"
+          className="practice-content"
+          role="tabpanel"
+          aria-labelledby="grammar-tab-practice"
+          tabIndex={0}
+          hidden={tab !== 'practice'}
+        >
           {!exercise ? (
             topic.exercises.length && exerciseIndex >= topic.exercises.length ? (
               <div className="theory-placeholder">
@@ -360,7 +396,14 @@ export function GrammarDetailPage() {
               <div className="theory-placeholder">
                 <h2>Упражнений пока нет</h2>
                 <p>Создай теорию, чтобы появились тренировочные задания.</p>
-                <button className="secondary-button" type="button" onClick={() => setTab('theory')}>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => {
+                    setTab('theory');
+                    theoryTabRef.current?.focus();
+                  }}
+                >
                   Посмотреть теорию
                 </button>
               </div>
@@ -404,7 +447,14 @@ export function GrammarDetailPage() {
                         ? 'Завершить'
                         : 'Следующее задание'}
                     </button>
-                    <button className="text-button" type="button" onClick={() => setTab('theory')}>
+                    <button
+                      className="text-button"
+                      type="button"
+                      onClick={() => {
+                        setTab('theory');
+                        theoryTabRef.current?.focus();
+                      }}
+                    >
                       Посмотреть правило
                     </button>
                   </div>
@@ -422,7 +472,7 @@ export function GrammarDetailPage() {
             </>
           )}
         </div>
-      )}
+      </>
     </>
   );
 }
