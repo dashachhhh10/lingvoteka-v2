@@ -28,6 +28,8 @@ pnpm dev
 
 ## Публичное размещение
 
+Сайт: [lingvoteka.vercel.app](https://lingvoteka.vercel.app). Статус фронтенда и логи сборки: [Vercel](https://vercel.com/daria-s-projects6/lingvoteka/deployments). Состояние API, worker, PostgreSQL и Bucket: [Railway](https://railway.com/project/0b87569c-2afb-49a3-a6ea-d96706e9d753).
+
 Фронтенд размещается в Vercel из `apps/web`: production-ветка `dev`, framework Vite. Файл `apps/web/vercel.json` проксирует `/api/*` на публичный Railway API и направляет остальные маршруты в React-приложение. При смене домена API обновите этот адрес в `vercel.json`. Это сохраняет cookie-сессии на одном домене с фронтендом; локально продолжает работать Vite-прокси.
 
 В Railway нужны PostgreSQL, закрытый Bucket и две службы из того же репозитория/ветки `dev`. Обе собираются из корневого `Dockerfile`. У API команда запуска `pnpm --filter @lingvoteka/api start`, healthcheck `/api/health`, а перед запуском — `pnpm --filter @lingvoteka/api exec prisma migrate deploy`. У worker команда `pnpm --filter @lingvoteka/api start:worker`; публичный домен ему не нужен. Обе службы получают `DATABASE_URL` ссылкой на PostgreSQL и одинаковые `FILE_STORAGE=s3`, `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE=false`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` ссылками на Bucket. API дополнительно получает `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` и `WEB_ORIGIN` (оба URL — публичный адрес Vercel), `REGISTRATION_INVITE_CODE`, `SMTP_*`, `AI_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL` и `NODE_ENV=production`; worker нужны `NODE_ENV`, `AI_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL`. Секреты хранятся только в настройках Railway, не в Git и не во фронтенде.
