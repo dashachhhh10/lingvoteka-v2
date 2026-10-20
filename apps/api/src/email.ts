@@ -9,17 +9,14 @@ type EmailInput = {
 let smtpVerified = false;
 
 export function passwordResetAvailable(): boolean {
-  return process.env.EMAIL_PROVIDER !== 'disabled';
+  return process.env.EMAIL_PROVIDER === 'smtp' || process.env.EMAIL_PROVIDER === 'resend';
 }
 
 export function emailDeliveryConfigured(): boolean {
-  if (process.env.EMAIL_PROVIDER === 'disabled') return false;
   if (process.env.EMAIL_PROVIDER === 'resend') {
     return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM);
   }
-  return !process.env.EMAIL_PROVIDER || process.env.EMAIL_PROVIDER === 'smtp'
-    ? smtpConfigured()
-    : false;
+  return process.env.EMAIL_PROVIDER === 'smtp' ? smtpConfigured() : false;
 }
 
 export function smtpConfigured(): boolean {
@@ -46,7 +43,7 @@ function previewDevelopmentEmail(input: EmailInput): void {
 }
 
 export async function initializeEmailDelivery(): Promise<void> {
-  if (process.env.EMAIL_PROVIDER === 'disabled') {
+  if (!passwordResetAvailable()) {
     console.info('Email delivery disabled');
     return;
   }
@@ -70,7 +67,7 @@ export async function initializeEmailDelivery(): Promise<void> {
 }
 
 export async function sendEmail(input: EmailInput): Promise<void> {
-  if (process.env.EMAIL_PROVIDER === 'disabled') {
+  if (!passwordResetAvailable()) {
     throw new Error('Email delivery is disabled');
   }
   if (process.env.EMAIL_PROVIDER === 'resend') {

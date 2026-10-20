@@ -7,6 +7,7 @@ const originalEnv = {
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM: process.env.RESEND_FROM,
   EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
+  SMTP_HOST: process.env.SMTP_HOST,
 };
 const originalFetch = globalThis.fetch;
 
@@ -61,6 +62,17 @@ test('disabled email mode keeps startup valid without sending messages', async (
   process.env.EMAIL_PROVIDER = 'disabled';
   delete process.env.RESEND_API_KEY;
   delete process.env.RESEND_FROM;
+  assert.equal(emailDeliveryConfigured(), false);
+  assert.equal(passwordResetAvailable(), false);
+  await assert.rejects(
+    sendEmail({ to: 'student@example.com', subject: 'Сброс пароля', text: 'Ссылка' }),
+    { message: 'Email delivery is disabled' },
+  );
+});
+
+test('missing email provider also keeps delivery disabled', async () => {
+  delete process.env.EMAIL_PROVIDER;
+  process.env.SMTP_HOST = 'smtp.example.com';
   assert.equal(emailDeliveryConfigured(), false);
   assert.equal(passwordResetAvailable(), false);
   await assert.rejects(

@@ -39,12 +39,10 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance() as express.Express;
   expressApp.use('/api/auth/request-password-reset', (_request, response, next) => {
     if (passwordResetAvailable()) return next();
-    response
-      .status(503)
-      .json({
-        code: 'PASSWORD_RESET_DISABLED',
-        message: 'Восстановление пароля временно недоступно',
-      });
+    response.status(503).json({
+      code: 'PASSWORD_RESET_DISABLED',
+      message: 'Восстановление пароля временно недоступно',
+    });
   });
   expressApp.use('/api/auth/sign-up/email', (request, response, next) => {
     const configured = process.env.REGISTRATION_INVITE_CODE;
