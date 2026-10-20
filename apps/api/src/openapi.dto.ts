@@ -146,14 +146,14 @@ export class CategoryQueueDto {
   @ApiProperty({ type: Number }) queued!: number;
 }
 
-export class VocabularySourceDto {
-  @ApiProperty({ type: () => MaterialReferenceDto }) material!: MaterialReferenceDto;
-}
-
 export class MaterialReferenceDto {
   @ApiProperty({ type: String }) id!: string;
   @ApiProperty({ type: String }) title!: string;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
+}
+
+export class VocabularySourceDto {
+  @ApiProperty({ type: () => MaterialReferenceDto }) material!: MaterialReferenceDto;
 }
 
 export class ReviewQueueCardDto {
