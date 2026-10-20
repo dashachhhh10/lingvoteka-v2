@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 
 @theme inline {
+  --font-sans: var(--ui-font);
+  --font-display: var(--display-font);
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-ink: var(--ink);
@@ -9,55 +11,71 @@
   --color-action: var(--action);
   --color-action-ink: var(--action-ink);
   --color-olive: var(--accent-olive);
+  --color-olive-soft: var(--accent-olive-soft);
   --color-lemon: var(--accent-lemon);
+  --color-lemon-soft: var(--accent-lemon-soft);
+  --color-wheel: var(--wheel);
+  --spacing-page: var(--page-gutter);
+  --radius-control: var(--control-radius);
+  --radius-card: var(--card-radius);
+  --shadow-wheel: var(--wheel-shadow);
 }
 
 :root {
   color-scheme: light;
-  --canvas: #f7f7f7;
-  --surface: #ffffff;
-  --ink: #222222;
-  --muted: #626262;
-  --line: #dedede;
-  --soft: #efefef;
-  --action: #53683d;
-  --action-ink: #ffffff;
-  --secondary-action: #f2e8be;
-  --secondary-action-border: #967b22;
-  --secondary-action-ink: #3a3219;
-  --focus: #53683d;
-  --error: #aa3434;
-  --success: #53683d;
-  --accent-olive: #53683d;
-  --accent-olive-soft: #eaf0e3;
-  --accent-lemon: #b59a36;
-  --accent-lemon-soft: #f6f0db;
-  --vine-olive: #667a4f;
-  --vine-lemon: #d5b754;
+  --ui-font: 'Avenir Next', Avenir, 'Segoe UI', system-ui, sans-serif;
+  --display-font: 'Avenir Next', Avenir, 'Segoe UI', system-ui, sans-serif;
+  --page-gutter: clamp(20px, 4vw, 64px);
+  --control-radius: 10px;
+  --card-radius: 16px;
+  --canvas: #f8f8f2;
+  --surface: #fffefa;
+  --ink: #273027;
+  --muted: #5d695e;
+  --line: #d8dfd4;
+  --soft: #eef2e9;
+  --action: #4f6b54;
+  --action-ink: #fffefa;
+  --secondary-action: #f5edcf;
+  --secondary-action-border: #a1883e;
+  --secondary-action-ink: #40391f;
+  --focus: #4f6b54;
+  --error: #a63e36;
+  --success: #4f6b54;
+  --accent-olive: #4f6b54;
+  --accent-olive-soft: #e8f0e5;
+  --accent-lemon: #a58735;
+  --accent-lemon-soft: #f8f1da;
+  --vine-olive: #71906d;
+  --vine-lemon: #cdb45b;
+  --wheel: #eef2e9;
+  --wheel-shadow: 0 20px 45px -18px rgb(40 59 37 / 24%);
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --canvas: #171717;
-  --surface: #202020;
-  --ink: #f2f2f2;
-  --muted: #b5b5b5;
-  --line: #3c3c3c;
-  --soft: #2b2b2b;
-  --action: #afc992;
-  --action-ink: #1b2117;
-  --secondary-action: #443b24;
-  --secondary-action-border: #d2b85d;
-  --secondary-action-ink: #f6edcf;
-  --focus: #afc992;
-  --error: #ffb4b4;
-  --success: #afc992;
-  --accent-olive: #afc992;
-  --accent-olive-soft: #2b3527;
-  --accent-lemon: #e0c76a;
-  --accent-lemon-soft: #37311f;
-  --vine-olive: #9eb979;
-  --vine-lemon: #e0c76a;
+  --canvas: #171e19;
+  --surface: #222b23;
+  --ink: #f0f2e9;
+  --muted: #bac4b7;
+  --line: #3b493c;
+  --soft: #2a352b;
+  --action: #b5d1a7;
+  --action-ink: #1b2b1d;
+  --secondary-action: #51482d;
+  --secondary-action-border: #d9c36c;
+  --secondary-action-ink: #f8efcd;
+  --focus: #b5d1a7;
+  --error: #ffc1b7;
+  --success: #b5d1a7;
+  --accent-olive: #b5d1a7;
+  --accent-olive-soft: #2e3e30;
+  --accent-lemon: #e1c975;
+  --accent-lemon-soft: #3e3929;
+  --vine-olive: #a4c298;
+  --vine-lemon: #e1c975;
+  --wheel: #263629;
+  --wheel-shadow: 0 22px 50px -20px rgb(0 0 0 / 58%);
 }
 
 * {
@@ -72,7 +90,7 @@ body {
   min-width: 320px;
   color: var(--ink);
   background: var(--canvas);
-  font-family: 'Avenir Next', Avenir, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--ui-font);
   line-height: 1.5;
 }
 button,
@@ -82,9 +100,6 @@ textarea {
 }
 button {
   cursor: pointer;
-}
-a {
-  color: inherit;
 }
 ::selection {
   background: var(--ink);
@@ -111,6 +126,7 @@ input,
 }
 
 .wordmark {
+  font-family: var(--display-font);
   font-size: 22px;
   font-weight: 750;
   letter-spacing: -0.05em;
@@ -136,6 +152,7 @@ input,
 .page-title {
   margin: 0;
   font-size: 42px;
+  font-family: var(--display-font);
   font-weight: 650;
   letter-spacing: -0.035em;
   line-height: 1.1;
@@ -237,7 +254,7 @@ input,
   margin: 0 0 20px;
   padding: 0 13px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   color: var(--ink);
   background: var(--surface);
   outline: none;
@@ -295,7 +312,7 @@ input,
   width: 100%;
   padding: 10px 17px;
   border: 1px solid var(--action);
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   background: var(--action);
   color: var(--action-ink);
   font-weight: 650;
@@ -318,7 +335,7 @@ input,
 .form-message {
   margin: 0 0 16px;
   padding: 11px 12px;
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   font-size: 14px;
 }
 .form-message.error {
@@ -674,7 +691,7 @@ input,
   min-height: 45px;
   padding: 10px 16px;
   border: 1px solid var(--action);
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   background: var(--action);
   color: var(--action-ink);
   font-size: 14px;
@@ -786,7 +803,7 @@ input,
   min-height: 45px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   outline: none;
   background: var(--surface);
   color: var(--ink);
@@ -825,7 +842,7 @@ input,
   min-height: 44px;
   padding: 10px 16px;
   border: 1px solid var(--secondary-action-border);
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   background: var(--secondary-action);
   color: var(--secondary-action-ink);
   font-size: 14px;
@@ -1002,7 +1019,7 @@ input,
   min-height: 45px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   outline: none;
   background: var(--surface);
   color: var(--ink);
@@ -1260,7 +1277,7 @@ button.vocab-group-heading:hover {
   min-height: 55px;
   padding: 9px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   background: var(--surface);
   color: var(--ink);
   font-size: 13px;
@@ -1398,7 +1415,7 @@ button.vocab-group-heading:hover {
   min-height: 64px;
   padding: 13px 16px;
   border: 1px solid var(--secondary-action-border);
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   background: var(--accent-lemon-soft);
   color: var(--ink);
   text-align: left;

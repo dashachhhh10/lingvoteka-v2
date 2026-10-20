@@ -26,6 +26,7 @@ import { MaterialDetailPage, MaterialsPage, NewMaterialPage } from './Materials'
 import { ReviewPage, VocabularyPage } from './Vocabulary';
 import { api } from './api';
 import { GrammarDetailPage, GrammarPage } from './Grammar';
+import { LandingPage } from './Landing';
 
 function translateAuthError(code?: string, message?: string): string {
   if (code === 'INVALID_EMAIL_OR_PASSWORD') return 'Неверная почта или пароль';
@@ -55,15 +56,11 @@ function RequireSession() {
   );
 }
 
-function AuthenticatedContent() {
+function AuthenticatedContent({ children }: { children?: ReactNode }) {
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { retry: 1 } } }),
   );
-  return (
-    <QueryClientProvider client={queryClient}>
-      <Outlet />
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children ?? <Outlet />}</QueryClientProvider>;
 }
 
 function GuestOnly() {
@@ -467,7 +464,7 @@ const navigation = [
   { to: '/grammar', label: 'Грамматика', end: false },
 ];
 
-function AppShell() {
+function AppShell({ children }: { children?: ReactNode }) {
   const { data } = authClient.useSession();
   return (
     <div className="app-layout">
@@ -504,7 +501,7 @@ function AppShell() {
         </div>
       </header>
       <main className="page-content" id="main">
-        <Outlet />
+        {children ?? <Outlet />}
       </main>
       <PageVine />
       <nav className="mobile-nav" aria-label="Основная навигация на телефоне">
@@ -637,6 +634,19 @@ function TodayPage() {
   );
 }
 
+function HomeEntry() {
+  const { data, isPending } = authClient.useSession();
+  if (isPending) return <BusyScreen />;
+  if (!data?.user) return <LandingPage />;
+  return (
+    <AuthenticatedContent>
+      <AppShell>
+        <TodayPage />
+      </AppShell>
+    </AuthenticatedContent>
+  );
+}
+
 function ProfilePage() {
   const { data } = authClient.useSession();
   const navigate = useNavigate();
@@ -702,6 +712,8 @@ export function App() {
   return (
     <ThemeProvider>
       <Routes>
+        <Route index element={<HomeEntry />} />
+        <Route path="welcome" element={<LandingPage />} />
         <Route element={<GuestOnly />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -711,7 +723,6 @@ export function App() {
         <Route element={<RequireSession />}>
           <Route path="review" element={<ReviewPage />} />
           <Route element={<AppShell />}>
-            <Route index element={<TodayPage />} />
             <Route path="materials" element={<MaterialsPage />} />
             <Route path="materials/new" element={<NewMaterialPage />} />
             <Route path="materials/:id" element={<MaterialDetailPage />} />
