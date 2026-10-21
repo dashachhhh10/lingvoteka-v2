@@ -301,8 +301,8 @@ export function ReviewPage() {
     pointerId: number;
     startX: number;
     startY: number;
-    dx: number;
-    moved: boolean;
+    startedAt: number;
+    dragged: boolean;
   } | null>(null);
   const ignoreClickUntilRef = useRef(0);
   const [error, setError] = useState('');
@@ -364,14 +364,14 @@ export function ReviewPage() {
     gsap.to(cardMotionRef.current, { x: 0, rotation: 0, duration: 0.2, ease: 'power2.out' });
   }
   function pointerDown(event: PointerEvent<HTMLButtonElement>) {
-    if (!revealed || pending || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (pending || (event.pointerType === 'mouse' && event.button !== 0)) return;
     if (cardMotionRef.current) gsap.killTweensOf(cardMotionRef.current);
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      dx: 0,
-      moved: false,
+      startedAt: performance.now(),
+      dragged: false,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -380,9 +380,8 @@ export function ReviewPage() {
     if (!drag || drag.pointerId !== event.pointerId) return;
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
-    if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
-    drag.dx = dx;
-    drag.moved = true;
+    if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy) * 1.15) return;
+    drag.dragged = true;
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && cardMotionRef.current)
       gsap.set(cardMotionRef.current, { x: dx, rotation: dx / 30 });
   }
@@ -390,11 +389,17 @@ export function ReviewPage() {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
-    if (!drag.moved) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.dragged && Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
     ignoreClickUntilRef.current = performance.now() + 500;
-    const threshold = Math.max(70, Math.min(110, event.currentTarget.clientWidth * 0.18));
-    if (Math.abs(drag.dx) >= threshold) void rate(drag.dx > 0 ? 3 : 1, drag.dx > 0 ? 1 : -1);
-    else resetDrag();
+    const threshold = Math.min(62, Math.max(40, event.currentTarget.clientWidth * 0.1));
+    const quickSwipe = performance.now() - drag.startedAt < 320 && Math.abs(dx) >= 24;
+    if (Math.abs(dx) > Math.abs(dy) * 1.15 && (Math.abs(dx) >= threshold || quickSwipe)) {
+      void rate(dx > 0 ? 3 : 1, dx > 0 ? 1 : -1);
+    } else {
+      resetDrag();
+    }
   }
   function pointerCancel() {
     dragRef.current = null;
@@ -470,8 +475,8 @@ export function ReviewPage() {
                 aria-pressed={revealed}
                 aria-label={
                   revealed
-                    ? `Перевод: ${card.translation}. Нажми, чтобы вернуться к слову.`
-                    : `Слово: ${card.term}. Нажми, чтобы увидеть перевод.`
+                    ? `Перевод: ${card.translation}. Нажми, чтобы вернуться к слову, или смахни для оценки.`
+                    : `Слово: ${card.term}. Нажми, чтобы увидеть перевод, или смахни для оценки.`
                 }
                 onClick={() => {
                   if (performance.now() < ignoreClickUntilRef.current || pending) return;
@@ -490,8 +495,8 @@ export function ReviewPage() {
                   </span>
                   <span className="flashcard-face flashcard-back" aria-hidden={!revealed}>
                     <span className="flashcard-kicker">Перевод</span>
-                    <strong>{card.translation}</strong>
-                    {card.example && (
+                    <strong>{revealed ? card.translation : ''}</strong>
+                    {revealed && card.example && (
                       <span className="flashcard-example" lang="it">
                         {card.example}
                       </span>
@@ -503,7 +508,7 @@ export function ReviewPage() {
             </div>
             {revealed ? (
               <div className="rating-area">
-                <p>Смахни ← «не помню» или «помню» →. Можно выбрать точную оценку:</p>
+                <p>Смахни любую сторону ← «не помню» или «помню» →. Можно выбрать точную оценку:</p>
                 <div className="rating-buttons">
                   <button type="button" disabled={pending} onClick={() => void rate(1)}>
                     <kbd>1</kbd> Не помню
@@ -520,7 +525,9 @@ export function ReviewPage() {
                 </div>
               </div>
             ) : (
-              <p className="flashcard-help">Нажми на карточку или пробел, чтобы увидеть перевод.</p>
+              <p className="flashcard-help">
+                Нажми, чтобы увидеть перевод, или смахни карточку для оценки.
+              </p>
             )}
           </>
         )}
