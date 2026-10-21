@@ -1,0 +1,100 @@
+/* The surface morphs independently of page layout. Colors follow the shared theme. */
+.floating-navigation {
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  width: min(208px, calc(100vw - 32px));
+  transition: width 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.floating-navigation[data-open='true'] {
+  width: min(304px, calc(100vw - 32px));
+}
+.floating-navigation-surface {
+  border-radius: 28px;
+  background: var(--accent-lemon-soft);
+  color: var(--ink);
+  transition: color 160ms ease;
+}
+.floating-navigation[data-open='true'] .floating-navigation-surface {
+  color: var(--action-ink);
+  border-color: var(--action);
+}
+.floating-navigation-fill {
+  inset: 0;
+  z-index: -1;
+  background: var(--action);
+  clip-path: circle(0% at 50% 100%);
+  transition: clip-path 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.floating-navigation[data-open='true'] .floating-navigation-fill {
+  clip-path: circle(140% at 50% 100%);
+}
+.floating-navigation-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  opacity: 0;
+  max-height: calc(100dvh - 140px - env(safe-area-inset-bottom));
+  transition:
+    grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 120ms ease,
+    visibility 320ms;
+}
+.floating-navigation[data-open='true'] .floating-navigation-panel {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  opacity: 1;
+}
+.floating-navigation-trigger {
+  color: inherit;
+}
+.floating-navigation-link {
+  color: inherit;
+}
+.floating-navigation-link[aria-current='page'] {
+  background: color-mix(in srgb, var(--action-ink) 14%, transparent);
+}
+.floating-navigation-link[aria-current='page'] .floating-navigation-marker {
+  opacity: 1;
+}
+.floating-navigation :focus-visible {
+  outline-color: currentColor;
+  outline-offset: -4px;
+}
+.floating-navigation-line {
+  transform: translateY(-3px);
+  transition: transform 200ms ease-out;
+}
+.floating-navigation-line + .floating-navigation-line {
+  transform: translateY(3px);
+}
+.floating-navigation[data-open='true'] .floating-navigation-line {
+  transform: rotate(45deg);
+}
+.floating-navigation[data-open='true'] .floating-navigation-line + .floating-navigation-line {
+  transform: rotate(-45deg);
+}
+.floating-navigation-trigger:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) and (pointer: fine) {
+  .floating-navigation-link:hover {
+    background: color-mix(in srgb, var(--action-ink) 10%, transparent);
+  }
+  .floating-navigation-link:hover .floating-navigation-letter {
+    transform: translateY(-50%);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1) var(--letter-delay);
+  }
+}
+.floating-navigation[data-keyboard='true'],
+.floating-navigation[data-keyboard='true'] * {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .floating-navigation,
+  .floating-navigation * {
+    transition: none !important;
+  }
+  .floating-navigation .floating-navigation-letter,
+  .floating-navigation-trigger:active {
+    transform: none !important;
+  }
+}

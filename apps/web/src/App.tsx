@@ -15,6 +15,7 @@ import {
   Outlet,
   Route,
   Routes,
+  useLocation,
   useNavigate,
   useSearchParams,
 } from 'react-router-dom';
@@ -27,6 +28,7 @@ import { ReviewPage, VocabularyPage } from './Vocabulary';
 import { api } from './api';
 import { GrammarDetailPage, GrammarPage } from './Grammar';
 import { LandingPage } from './Landing';
+import FloatingMenu from './components/ui/liquid-morph-floating-menu';
 
 function translateAuthError(code?: string, message?: string): string {
   if (code === 'INVALID_EMAIL_OR_PASSWORD') return 'Неверная почта или пароль';
@@ -457,34 +459,24 @@ function ResetPasswordPage() {
   );
 }
 
-const navigation = [
-  { to: '/', label: 'Сегодня', end: true },
-  { to: '/materials', label: 'Материалы', end: false },
-  { to: '/vocabulary', label: 'Словарь', end: false },
-  { to: '/grammar', label: 'Грамматика', end: false },
-];
-
 function AppShell({ children }: { children?: ReactNode }) {
   const { data } = authClient.useSession();
+  const { pathname } = useLocation();
+  const main = useRef<HTMLElement>(null);
+  useEffect(() => {
+    main.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [pathname]);
   return (
-    <div className="app-layout">
+    <div className="flex min-h-dvh flex-col">
       <header className="app-header">
-        <div className="app-header-inner">
+        <div className="mx-auto flex min-h-[76px] w-full max-w-[1440px] items-center justify-between gap-4 px-page">
           <Link className="wordmark" to="/">
             Lingvoteka<span className="wordmark-dot">.</span>
           </Link>
-          <nav className="desktop-nav" aria-label="Основная навигация">
-            {navigation.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+          <span className="hidden text-xs tracking-wide text-muted sm:block">
+            Итальянский из твоих уроков
+          </span>
           <div className="header-actions">
             <ThemeSwitch />
             <NavLink
@@ -500,22 +492,16 @@ function AppShell({ children }: { children?: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="page-content" id="main">
-        {children ?? <Outlet />}
+      <main
+        className="page-content !pb-32 focus-visible:outline-none"
+        id="main"
+        ref={main}
+        tabIndex={-1}
+      >
+        <PageMotion key={pathname}>{children ?? <Outlet />}</PageMotion>
       </main>
       <PageVine />
-      <nav className="mobile-nav" aria-label="Основная навигация на телефоне">
-        {navigation.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) => (isActive ? 'mobile-nav-link active' : 'mobile-nav-link')}
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
+      <FloatingMenu />
     </div>
   );
 }
@@ -581,29 +567,62 @@ function TodayPage() {
   const available = (summary?.dueCount ?? 0) + (summary?.newCount ?? 0);
   return (
     <>
-      <h1 className="page-title">Сегодня</h1>
-      <p className="page-lead">
-        {firstName ? `${firstName}, вот твой следующий шаг.` : 'Вот твой следующий шаг.'}
-      </p>
+      <header className="mx-auto max-w-2xl pb-10 pt-6 text-center sm:pb-14 sm:pt-10">
+        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-olive">
+          Un passo alla volta · Шаг за шагом
+        </p>
+        <h1 className="m-0 font-display text-[clamp(52px,8vw,88px)] font-medium leading-none tracking-[-0.065em]">
+          Сегодня<span className="text-lemon">.</span>
+        </h1>
+        <p className="mx-auto mb-0 mt-6 max-w-md text-base leading-relaxed text-muted sm:text-lg">
+          {firstName ? `${firstName}, немного итальянского?` : 'Немного итальянского?'}
+          <br />
+          Твои уроки становятся словами, которые ты помнишь.
+        </p>
+      </header>
       <section
-        className={available > 0 ? 'today-focus today-focus-has-cards' : 'today-focus'}
+        className="rounded-[24px] border border-line bg-olive-soft p-6 sm:p-10"
         aria-labelledby="today-focus-title"
       >
+        <p className="mb-5 mt-0 text-[11px] font-semibold uppercase tracking-[0.16em] text-olive">
+          Твой следующий шаг
+        </p>
         {loadError ? (
           <div>
-            <h2 id="today-focus-title">Не удалось загрузить план</h2>
-            <p>Проверь соединение и обнови страницу.</p>
+            <h2 id="today-focus-title" className="m-0 text-2xl font-semibold tracking-tight">
+              Не удалось загрузить план
+            </h2>
+            <p className="text-muted">Проверь соединение и попробуй ещё раз.</p>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                void queueQuery.refetch();
+                void materialsQuery.refetch();
+              }}
+            >
+              Попробовать снова
+            </button>
           </div>
         ) : summary === null || materialCount === null ? (
-          <div className="page-vine-loading">
-            <h2 id="today-focus-title">Собираем твой план</h2>
-            <p>Проверяем материалы и карточки на сегодня.</p>
+          <div className="page-vine-loading" role="status">
+            <h2 id="today-focus-title" className="m-0 text-2xl font-semibold tracking-tight">
+              Собираем твой план
+            </h2>
+            <p className="text-muted">Проверяем материалы и карточки на сегодня.</p>
           </div>
         ) : available > 0 ? (
-          <div className="today-focus-grid">
-            <div className="today-focus-copy">
-              <h2 id="today-focus-title">Карточки ждут тебя</h2>
-              <p>
+          <div className="grid items-center gap-10 sm:grid-cols-[1fr_auto]">
+            <div>
+              <h2
+                id="today-focus-title"
+                className="m-0 text-3xl font-medium leading-tight tracking-tight sm:text-4xl"
+              >
+                Вспомни знакомое.
+                <br />
+                Выучи новое.
+              </h2>
+              <p className="mb-7 mt-4 text-muted">
                 {summary.dueCount} на повторение · {summary.newCount} новых слов.
               </p>
               <Link className="action-link" to="/review">
@@ -614,22 +633,85 @@ function TodayPage() {
           </div>
         ) : materialCount === 0 ? (
           <div>
-            <h2 id="today-focus-title">Добавь первый материал</h2>
-            <p>Когда добавишь материалы, мы соберём из них слова и темы для практики.</p>
+            <h2
+              id="today-focus-title"
+              className="m-0 text-3xl font-medium tracking-tight sm:text-4xl"
+            >
+              Всё начинается с твоего урока
+            </h2>
+            <p className="mb-7 mt-4 max-w-lg leading-relaxed text-muted">
+              Добавь текст, файл или фото. Мы предложим слова и темы, а ты выберешь, что сохранить и
+              изучать.
+            </p>
             <Link className="action-link" to="/materials/new">
               Добавить материал
             </Link>
           </div>
         ) : (
           <div>
-            <h2 id="today-focus-title">На сегодня всё</h2>
-            <p>Можно добавить новый материал или потренировать грамматику.</p>
+            <h2
+              id="today-focus-title"
+              className="m-0 text-3xl font-medium tracking-tight sm:text-4xl"
+            >
+              На сегодня всё
+            </h2>
+            <p className="mb-7 mt-4 text-muted">
+              Можно добавить новый материал или потренировать грамматику.
+            </p>
             <Link className="action-link" to="/materials/new">
               Добавить материал
             </Link>
           </div>
         )}
       </section>
+      <section className="mt-12 sm:mt-16" aria-labelledby="today-sections-title">
+        <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="today-sections-title" className="m-0 text-xl font-semibold tracking-tight">
+            Твоё пространство
+          </h2>
+          <p className="m-0 text-sm text-muted">От урока — к уверенной речи</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            {
+              to: '/materials',
+              number: '01',
+              label: 'Материалы',
+              caption: 'С чего всё начинается',
+              description: 'Уроки, заметки и файлы. Добавляй новое и разбирай в своём темпе.',
+            },
+            {
+              to: '/vocabulary',
+              number: '02',
+              label: 'Словарь',
+              caption: 'Слова, которые остаются',
+              description: 'Всё, что ты сохранила из уроков: значения, примеры и темы.',
+            },
+            {
+              to: '/grammar',
+              number: '03',
+              label: 'Грамматика',
+              caption: 'Понятнее с практикой',
+              description: 'Возвращайся к правилам и закрепляй их в упражнениях.',
+            },
+          ].map((section) => (
+            <Link
+              key={section.to}
+              to={section.to}
+              className="group rounded-[20px] border border-line bg-surface p-6 text-ink no-underline transition-colors hover:border-olive hover:bg-olive-soft"
+            >
+              <div className="mb-8 flex items-center justify-between text-sm text-olive">
+                <span>{section.number}</span>
+                <span aria-hidden="true">↗</span>
+              </div>
+              <p className="mb-2 text-xs text-muted">{section.caption}</p>
+              <h3 className="m-0 text-2xl font-medium tracking-tight">{section.label}</h3>
+              <p className="mb-0 mt-3 text-sm leading-relaxed text-muted">{section.description}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+      <p className="mb-0 mt-10 text-center text-xs text-muted">Твой итальянский, в твоём ритме.</p>
     </>
   );
 }
