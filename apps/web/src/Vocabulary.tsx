@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type PointerEvent,
+  type TouchEvent,
+} from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
@@ -317,6 +325,13 @@ export function ReviewPage() {
     startedAt: number;
     dragged: boolean;
   } | null>(null);
+  const touchRef = useRef<{
+    identifier: number;
+    startX: number;
+    startY: number;
+    startedAt: number;
+    dragged: boolean;
+  } | null>(null);
   const ignoreClickUntilRef = useRef(0);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -334,9 +349,6 @@ export function ReviewPage() {
     };
   }, [queueAttempt]);
   const card = queue?.cards[index];
-  useEffect(() => {
-    ignoreClickUntilRef.current = 0;
-  }, [card?.id]);
   async function rate(rating: number, swipeDirection?: -1 | 1) {
     if (!card || ratingLock.current) return;
     ratingLock.current = true;
@@ -386,7 +398,14 @@ export function ReviewPage() {
     gsap.to(cardMotionRef.current, { x: 0, rotation: 0, duration: 0.2, ease: 'power2.out' });
   }
   function pointerDown(event: PointerEvent<HTMLButtonElement>) {
-    if (pending || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    // Safari may cancel touch pointer events when a pan starts; touch events own that path.
+    if (
+      event.pointerType === 'touch' ||
+      pending ||
+      ratingLock.current ||
+      (event.pointerType === 'mouse' && event.button !== 0)
+    )
+      return;
     if (cardMotionRef.current) gsap.killTweensOf(cardMotionRef.current);
     dragRef.current = {
       pointerId: event.pointerId,
@@ -423,8 +442,56 @@ export function ReviewPage() {
       resetDrag();
     }
   }
-  function pointerCancel() {
+  function pointerCancel(event: PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType === 'touch') return;
     dragRef.current = null;
+    resetDrag();
+  }
+  function touchStart(event: TouchEvent<HTMLButtonElement>) {
+    if (pending || ratingLock.current || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    if (cardMotionRef.current) gsap.killTweensOf(cardMotionRef.current);
+    touchRef.current = {
+      identifier: touch.identifier,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      startedAt: performance.now(),
+      dragged: false,
+    };
+  }
+  function touchMove(event: TouchEvent<HTMLButtonElement>) {
+    const drag = touchRef.current;
+    if (!drag || event.touches.length !== 1) return;
+    const touch = Array.from(event.touches).find((item) => item.identifier === drag.identifier);
+    if (!touch) return;
+    const dx = touch.clientX - drag.startX;
+    const dy = touch.clientY - drag.startY;
+    if (Math.abs(dx) < 7 || Math.abs(dx) < Math.abs(dy) * 0.85) return;
+    drag.dragged = true;
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && cardMotionRef.current)
+      gsap.set(cardMotionRef.current, { x: dx, rotation: dx / 30 });
+  }
+  function touchEnd(event: TouchEvent<HTMLButtonElement>) {
+    const drag = touchRef.current;
+    if (!drag) return;
+    const touch = Array.from(event.changedTouches).find(
+      (item) => item.identifier === drag.identifier,
+    );
+    if (!touch) return;
+    touchRef.current = null;
+    const dx = touch.clientX - drag.startX;
+    const dy = touch.clientY - drag.startY;
+    if (!drag.dragged && Math.abs(dx) < 7 && Math.abs(dy) < 7) return;
+    ignoreClickUntilRef.current = performance.now() + 700;
+    const quickSwipe = performance.now() - drag.startedAt < 450 && Math.abs(dx) >= 18;
+    if (Math.abs(dx) > Math.abs(dy) * 0.85 && (Math.abs(dx) >= 28 || quickSwipe)) {
+      void rate(dx > 0 ? 3 : 1, dx > 0 ? 1 : -1);
+    } else {
+      resetDrag();
+    }
+  }
+  function touchCancel() {
+    touchRef.current = null;
     resetDrag();
   }
   useEffect(() => {
@@ -521,6 +588,10 @@ export function ReviewPage() {
                 onPointerMove={pointerMove}
                 onPointerUp={pointerUp}
                 onPointerCancel={pointerCancel}
+                onTouchStart={touchStart}
+                onTouchMove={touchMove}
+                onTouchEnd={touchEnd}
+                onTouchCancel={touchCancel}
               >
                 <span className={`flashcard-inner${revealed ? ' flipped' : ''}`}>
                   <span className="flashcard-face flashcard-front" aria-hidden={revealed}>

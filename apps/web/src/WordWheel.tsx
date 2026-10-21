@@ -47,7 +47,14 @@ export function WordWheel({ items }: { items: WordWheelItem[] }) {
   const fadeRef = useRef<HTMLDivElement>(null);
   const turn = useRef(0);
   const target = useRef(0);
-  const drag = useRef<{ x: number; y: number; touch: boolean } | null>(null);
+  const drag = useRef<{
+    x: number;
+    y: number;
+    startX: number;
+    startY: number;
+    touch: boolean;
+  } | null>(null);
+  const interacted = useRef(false);
   const settleTimer = useRef(0);
   const [active, setActive] = useState(0);
   const [stage, setStage] = useState<Stage>({ width: 0, height: 0 });
@@ -99,6 +106,30 @@ export function WordWheel({ items }: { items: WordWheelItem[] }) {
   );
 
   useEffect(() => {
+    const element = stageRef.current;
+    if (!element || !items.length) return;
+    let timer = 0;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        observer.disconnect();
+        timer = window.setTimeout(
+          () => {
+            if (!interacted.current) to(1);
+          },
+          reducedMotion ? 0 : 550,
+        );
+      },
+      { threshold: 0.45 },
+    );
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(timer);
+    };
+  }, [items.length, reducedMotion, to]);
+
+  useEffect(() => {
     if (!stage.height || !items.length) return;
     let frame = 0;
     let firstFrame = true;
@@ -147,6 +178,7 @@ export function WordWheel({ items }: { items: WordWheelItem[] }) {
     const element = stageRef.current;
     if (!element) return;
     const onWheel = (event: WheelEvent) => {
+      interacted.current = true;
       const next =
         target.current === 0 && event.deltaY > 0 ? 1 : target.current + event.deltaY / WHEEL_UNITS;
       if (next > 0 && next < last + 1) event.preventDefault();
@@ -182,18 +214,28 @@ export function WordWheel({ items }: { items: WordWheelItem[] }) {
             drag.current = {
               x: event.clientX,
               y: event.clientY,
+              startX: event.clientX,
+              startY: event.clientY,
               touch: event.pointerType === 'touch',
             };
-            event.currentTarget.setPointerCapture(event.pointerId);
+            if (event.pointerType !== 'touch')
+              event.currentTarget.setPointerCapture(event.pointerId);
           }}
           onPointerMove={(event) => {
             if (!drag.current) return;
+            if (
+              drag.current.touch &&
+              Math.abs(event.clientX - drag.current.startX) <
+                Math.abs(event.clientY - drag.current.startY)
+            )
+              return;
             const distance = drag.current.touch
               ? drag.current.x - event.clientX
               : drag.current.y - event.clientY;
             if (Math.abs(distance) < 2) return;
+            interacted.current = true;
             to(target.current + distance / DRAG_UNITS);
-            drag.current = { x: event.clientX, y: event.clientY, touch: drag.current.touch };
+            drag.current = { ...drag.current, x: event.clientX, y: event.clientY };
           }}
           onPointerUp={() => {
             drag.current = null;
@@ -208,6 +250,7 @@ export function WordWheel({ items }: { items: WordWheelItem[] }) {
             else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp')
               to(Math.round(target.current) - 1);
             else return;
+            interacted.current = true;
             event.preventDefault();
           }}
         >
@@ -276,7 +319,10 @@ export function WordWheel({ items }: { items: WordWheelItem[] }) {
           <button
             type="button"
             className="grid size-10 place-items-center rounded-full bg-surface text-ink shadow-wheel transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-olive"
-            onClick={() => to(Math.max(1, Math.round(target.current)) - 1)}
+            onClick={() => {
+              interacted.current = true;
+              to(Math.max(1, Math.round(target.current)) - 1);
+            }}
             aria-label="Предыдущее слово"
           >
             <svg
@@ -295,7 +341,10 @@ export function WordWheel({ items }: { items: WordWheelItem[] }) {
           <button
             type="button"
             className="grid size-10 place-items-center rounded-full bg-surface text-ink shadow-wheel transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-olive"
-            onClick={() => to(Math.round(target.current) + 1)}
+            onClick={() => {
+              interacted.current = true;
+              to(Math.round(target.current) + 1);
+            }}
             aria-label="Следующее слово"
           >
             <svg

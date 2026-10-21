@@ -576,6 +576,40 @@ input,
 .today-preview:focus-within .today-preview-sheet-middle {
   transform: translate(-12px, -9px) rotate(-5deg);
 }
+/* Touch has no hover state: keep the Today actions responsive while pressed. */
+section[aria-labelledby='today-focus-title'] .control-split:active .control-action-label,
+section[aria-labelledby='today-focus-title'] .control-split:active .control-action-icon {
+  background: var(--accent-lemon-soft);
+  border-color: var(--accent-olive);
+}
+section[aria-labelledby='today-focus-title'] .action-link:active {
+  background: var(--accent-lemon-soft);
+  color: var(--ink);
+  border-color: var(--accent-olive);
+}
+section[aria-labelledby='today-focus-title'] .control-split:active .control-arrow-out {
+  transform: translate(32px, -32px);
+}
+section[aria-labelledby='today-focus-title'] .control-split:active .control-arrow-in {
+  transform: translate(0, 0);
+}
+section[aria-labelledby='today-sections-title'] a:active {
+  background: var(--accent-olive-soft);
+  border-color: var(--accent-olive);
+  transform: scale(0.985);
+}
+.today-preview-card:active {
+  transform: translateY(-3px) rotate(-1deg);
+  border-color: var(--accent-olive);
+}
+@media (prefers-reduced-motion: reduce) {
+  section[aria-labelledby='today-focus-title'] .control-split:active .control-arrow-out,
+  section[aria-labelledby='today-focus-title'] .control-split:active .control-arrow-in,
+  section[aria-labelledby='today-sections-title'] a:active,
+  .today-preview-card:active {
+    transform: none;
+  }
+}
 .empty-section {
   display: flex;
   align-items: center;
