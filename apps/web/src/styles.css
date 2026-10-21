@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './components/ui/controls.css';
 
 @theme inline {
   --font-sans: var(--ui-font);
@@ -249,16 +250,8 @@ input,
   font-weight: 400;
 }
 .auth-panel input {
-  width: 100%;
-  height: 46px;
-  margin: 0 0 20px;
-  padding: 0 13px;
-  border: 1px solid var(--line);
-  border-radius: var(--control-radius);
-  color: var(--ink);
-  background: var(--surface);
-  outline: none;
-  font-size: 16px;
+  @apply control-field;
+  margin-bottom: 20px;
 }
 .auth-panel input:focus {
   border-color: var(--focus);
@@ -308,29 +301,18 @@ input,
   font-size: 12px;
 }
 .primary-button {
-  min-height: 47px;
-  width: 100%;
-  padding: 10px 17px;
-  border: 1px solid var(--action);
-  border-radius: var(--control-radius);
-  background: var(--action);
-  color: var(--action-ink);
-  font-weight: 650;
-  transition:
-    transform 140ms ease,
-    filter 140ms ease,
-    opacity 140ms ease;
+  @apply control-base w-full border-action bg-action text-action-ink;
 }
 .primary-button:hover:not(:disabled) {
-  filter: brightness(0.93);
+  background: color-mix(in srgb, var(--action), var(--ink) 8%);
 }
 .primary-button:disabled,
 .text-button:disabled {
-  cursor: wait;
-  opacity: 0.65;
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 .primary-button:active:not(:disabled) {
-  transform: scale(0.985);
+  transform: scale(0.98);
 }
 .form-message {
   margin: 0 0 16px;
@@ -684,37 +666,28 @@ input,
 }
 .action-link,
 .secondary-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 25px;
-  min-height: 45px;
-  padding: 10px 16px;
-  border: 1px solid var(--action);
-  border-radius: var(--control-radius);
+  @apply control-base;
+}
+.action-link {
+  border-color: var(--action);
   background: var(--action);
   color: var(--action-ink);
-  font-size: 14px;
-  font-weight: 650;
-  text-decoration: none;
-  white-space: nowrap;
-  transition:
-    filter 160ms ease,
-    transform 160ms ease;
-}
-.action-link:hover,
-.secondary-button:hover {
-  filter: brightness(0.93);
-}
-.action-link:active,
-.secondary-button:active {
-  transform: scale(0.985);
 }
 .secondary-button {
-  gap: 0;
-  border-color: var(--secondary-action-border);
-  background: var(--secondary-action);
-  color: var(--secondary-action-ink);
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+.action-link:hover {
+  background: color-mix(in srgb, var(--action), var(--ink) 8%);
+}
+.secondary-button:hover:not(:disabled) {
+  background: var(--accent-olive-soft);
+  border-color: var(--action);
+}
+.action-link:active,
+.secondary-button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 .inline-link,
 .back-link {
@@ -781,7 +754,7 @@ input,
   margin-top: 45px;
   padding: 32px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 20px;
   background: var(--surface);
 }
 .material-form label,
@@ -799,16 +772,11 @@ input,
 .review-item input,
 .review-item select,
 .review-item textarea {
-  width: 100%;
-  min-height: 45px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--control-radius);
-  outline: none;
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 400;
+  @apply control-field;
+}
+.review-item .control-select {
+  border-radius: 999px;
+  padding-right: 44px;
 }
 .material-form textarea,
 .review-item textarea {
@@ -839,17 +807,11 @@ input,
   white-space: nowrap;
 }
 .file-picker-button {
-  min-height: 44px;
-  padding: 10px 16px;
-  border: 1px solid var(--secondary-action-border);
-  border-radius: var(--control-radius);
-  background: var(--secondary-action);
-  color: var(--secondary-action-ink);
-  font-size: 14px;
-  font-weight: 650;
+  @apply control-base border-line bg-canvas text-ink;
 }
 .file-picker-button:hover {
-  filter: brightness(0.93);
+  background: var(--accent-olive-soft);
+  border-color: var(--action);
 }
 .file-picker-status {
   color: var(--muted);
@@ -1005,51 +967,12 @@ input,
   white-space: nowrap;
   border: 0;
 }
-.vocab-toolbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 15px;
-  max-width: 960px;
-  margin-top: 48px;
-}
-.vocab-toolbar input,
-.vocab-filters select,
 .vocab-add input,
 .vocab-add textarea {
-  min-height: 45px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--control-radius);
-  outline: none;
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 15px;
+  @apply control-field;
 }
 .vocab-add textarea {
   resize: vertical;
-}
-.vocab-toolbar input {
-  width: min(100%, 410px);
-}
-.vocab-filters {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  max-width: 960px;
-  margin-top: 20px;
-}
-.vocab-filters label {
-  color: var(--muted);
-  font-size: 13px;
-}
-.vocab-filters select {
-  min-width: 180px;
-  max-width: 280px;
-  cursor: pointer;
-}
-.vocab-filters .text-button {
-  margin-left: auto;
 }
 .vocab-ai-note {
   max-width: 960px;
@@ -1064,7 +987,7 @@ input,
   margin-top: 22px;
   padding: 25px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 20px;
   background: var(--surface);
 }
 .vocab-add label {
@@ -1320,25 +1243,17 @@ button.vocab-group-heading:hover {
   color: var(--muted);
 }
 .topic-tabs {
-  display: flex;
-  gap: 30px;
-  max-width: 850px;
-  margin-top: 42px;
-  border-bottom: 1px solid var(--line);
+  @apply mt-10 inline-flex max-w-full flex-wrap gap-1 rounded-full border border-line bg-surface p-1;
 }
 .topic-tabs button {
-  min-height: 46px;
-  padding: 8px 0;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 650;
+  @apply min-h-11 rounded-full border-0 bg-transparent px-5 py-2 text-sm font-medium text-muted transition-colors;
 }
 .topic-tabs button.active {
-  border-color: var(--accent-olive);
+  background: var(--accent-olive-soft);
   color: var(--accent-olive);
+}
+.topic-tabs button:hover {
+  color: var(--ink);
 }
 .theory-content,
 .practice-content {
@@ -1468,19 +1383,7 @@ button.vocab-group-heading:hover {
     grid-template-columns: 1fr;
     gap: 3px;
   }
-  .vocab-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .vocab-toolbar input {
-    width: 100%;
-  }
-  .vocab-filters select {
-    max-width: none;
-  }
-  .vocab-filters .text-button {
-    margin-left: 0;
-  }
+
   .vocab-row {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;

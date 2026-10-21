@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
+import { ActionLink } from './components/ui/button';
+import { SelectField } from './components/ui/fields';
 import { StaggerList } from './Motion';
 import { partsOfSpeech, semanticTopics } from './vocabulary-categories';
 
@@ -84,9 +86,7 @@ export function MaterialsPage() {
             Добавляй файлы или текст, чтобы собрать слова и темы для практики.
           </p>
         </div>
-        <Link className="action-link" to="/materials/new">
-          Добавить материал <span aria-hidden="true">↗</span>
-        </Link>
+        <ActionLink to="/materials/new">Добавить материал</ActionLink>
       </div>
       {error && (
         <p className="form-message error" role="alert">
@@ -591,7 +591,7 @@ export function MaterialDetailPage() {
                 <div className="form-columns">
                   <label>
                     Часть речи
-                    <select
+                    <SelectField
                       value={item.partOfSpeech ?? ''}
                       onChange={(event) =>
                         setVocabulary((items) =>
@@ -605,11 +605,11 @@ export function MaterialDetailPage() {
                       {partsOfSpeech.map((value) => (
                         <option key={value}>{value}</option>
                       ))}
-                    </select>
+                    </SelectField>
                   </label>
                   <label>
                     Лексическая тема
-                    <select
+                    <SelectField
                       value={item.semanticTopic ?? ''}
                       onChange={(event) =>
                         setVocabulary((items) =>
@@ -623,7 +623,7 @@ export function MaterialDetailPage() {
                       {semanticTopics.map((value) => (
                         <option key={value}>{value}</option>
                       ))}
-                    </select>
+                    </SelectField>
                   </label>
                 </div>
                 {item.sourceExcerpt && (

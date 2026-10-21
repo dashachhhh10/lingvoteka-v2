@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { api } from './api';
+import { ActionLink, Button } from './components/ui/button';
+import { SearchField, SelectField } from './components/ui/fields';
 
 type VocabItem = {
   id: string;
@@ -130,58 +132,68 @@ export function VocabularyPage() {
             Слова автоматически распределяются по лексическим темам и частям речи.
           </p>
         </div>
-        <Link className="action-link" to="/review">
-          Повторять карточки <span aria-hidden="true">↗</span>
-        </Link>
+        <ActionLink to="/review">Повторять карточки</ActionLink>
       </div>
       {displayedError && (
         <p className="form-message error" role="alert">
           {displayedError}
         </p>
       )}
-      <div className="vocab-toolbar">
-        <label className="visually-hidden" htmlFor="vocab-search">
-          Найти слово
-        </label>
-        <input
+      <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <SearchField
           id="vocab-search"
-          type="search"
+          label="Найти слово"
           placeholder="Поиск по слову или переводу"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onValueChange={setQuery}
         />
-        <button className="secondary-button" type="button" onClick={() => setShowAdd(!showAdd)}>
-          {showAdd ? 'Закрыть' : '+ Добавить вручную'}
-        </button>
-      </div>
-      <div className="vocab-filters">
-        <label htmlFor="vocab-group-by">Группировать</label>
-        <select
-          id="vocab-group-by"
-          value={groupBy}
-          onChange={(event) => {
-            setGroupBy(event.target.value as 'semanticTopic' | 'partOfSpeech');
-            setTopic('all');
-            setExpandedTopics(new Set());
-          }}
+        <Button
+          variant="secondary"
+          icon={showAdd ? 'close' : 'plus'}
+          className="self-start sm:shrink-0"
+          aria-expanded={showAdd}
+          aria-controls="vocab-add-form"
+          onClick={() => setShowAdd(!showAdd)}
         >
-          <option value="semanticTopic">По темам</option>
-          <option value="partOfSpeech">По частям речи</option>
-        </select>
-        <label className="visually-hidden" htmlFor="vocab-topic">
-          Выбрать группу
+          {showAdd ? 'Закрыть' : 'Добавить вручную'}
+        </Button>
+      </div>
+      <div className="mt-5 flex flex-wrap items-end gap-3 sm:gap-4">
+        <label className="grid w-full gap-2 text-xs text-muted sm:w-52" htmlFor="vocab-group-by">
+          <span className="pl-4">Группировать</span>
+          <SelectField
+            id="vocab-group-by"
+            value={groupBy}
+            onChange={(event) => {
+              setGroupBy(event.target.value as 'semanticTopic' | 'partOfSpeech');
+              setTopic('all');
+              setExpandedTopics(new Set());
+            }}
+          >
+            <option value="semanticTopic">По темам</option>
+            <option value="partOfSpeech">По частям речи</option>
+          </SelectField>
         </label>
-        <select id="vocab-topic" value={topic} onChange={(event) => setTopic(event.target.value)}>
-          <option value="all">{groupBy === 'semanticTopic' ? 'Все темы' : 'Все части речи'}</option>
-          {topics.map((item) => (
-            <option key={item} value={item}>
-              {item}
+        <label className="grid w-full gap-2 text-xs text-muted sm:w-64" htmlFor="vocab-topic">
+          <span className="pl-4">{groupBy === 'semanticTopic' ? 'Тема' : 'Часть речи'}</span>
+          <SelectField
+            id="vocab-topic"
+            value={topic}
+            onChange={(event) => setTopic(event.target.value)}
+          >
+            <option value="all">
+              {groupBy === 'semanticTopic' ? 'Все темы' : 'Все части речи'}
             </option>
-          ))}
-        </select>
+            {topics.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </SelectField>
+        </label>
         {items.some((item) => ['AWAITING_APPROVAL', 'ERROR'].includes(item.categoryStatus)) && (
           <button
-            className="text-button"
+            className="text-button sm:ml-auto"
             type="button"
             onClick={() => void classifyExistingCategories()}
           >
@@ -193,7 +205,7 @@ export function VocabularyPage() {
         <p className="vocab-ai-note">При определении тем слова и переводы отправляются Gemini.</p>
       )}
       {showAdd && (
-        <form className="vocab-add" onSubmit={(event) => void add(event)}>
+        <form id="vocab-add-form" className="vocab-add" onSubmit={(event) => void add(event)}>
           <div className="form-columns">
             <label>
               По-итальянски
@@ -212,9 +224,9 @@ export function VocabularyPage() {
             Пример <span>необязательно</span>
             <input value={example} onChange={(event) => setExample(event.target.value)} />
           </label>
-          <button className="primary-button form-action" type="submit" disabled={pending}>
+          <Button className="justify-self-start" type="submit" disabled={pending}>
             {pending ? 'Добавляем…' : 'Добавить слово'}
-          </button>
+          </Button>
         </form>
       )}
       {loading ? (

@@ -28,6 +28,7 @@ import { ReviewPage, VocabularyPage } from './Vocabulary';
 import { api } from './api';
 import { GrammarDetailPage, GrammarPage } from './Grammar';
 import { LandingPage } from './Landing';
+import { ActionLink } from './components/ui/button';
 import FloatingMenu from './components/ui/liquid-morph-floating-menu';
 
 function translateAuthError(code?: string, message?: string): string {
@@ -625,9 +626,7 @@ function TodayPage() {
               <p className="mb-7 mt-4 text-muted">
                 {summary.dueCount} на повторение · {summary.newCount} новых слов.
               </p>
-              <Link className="action-link" to="/review">
-                Начать повторение
-              </Link>
+              <ActionLink to="/review">Начать повторение</ActionLink>
             </div>
             {summary.cards[0]?.term && <TodayCardPreview term={summary.cards[0].term} />}
           </div>
@@ -643,9 +642,7 @@ function TodayPage() {
               Добавь текст, файл или фото. Мы предложим слова и темы, а ты выберешь, что сохранить и
               изучать.
             </p>
-            <Link className="action-link" to="/materials/new">
-              Добавить материал
-            </Link>
+            <ActionLink to="/materials/new">Добавить материал</ActionLink>
           </div>
         ) : (
           <div>
@@ -658,9 +655,7 @@ function TodayPage() {
             <p className="mb-7 mt-4 text-muted">
               Можно добавить новый материал или потренировать грамматику.
             </p>
-            <Link className="action-link" to="/materials/new">
-              Добавить материал
-            </Link>
+            <ActionLink to="/materials/new">Добавить материал</ActionLink>
           </div>
         )}
       </section>

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
+import { Button } from './components/ui/button';
+import { SearchField } from './components/ui/fields';
 
 type TopicListItem = {
   id: string;
@@ -27,8 +29,7 @@ type Topic = {
   exercises: { id: string; position: number; prompt: string; options: string[] }[];
 };
 type Check = { correct: boolean; answerIndex: number; answer: string; explanation: string };
-const theoryFieldClass =
-  'w-full rounded-control border border-line bg-surface px-3 py-2.5 text-ink outline-none focus-visible:outline-2 focus-visible:outline-action';
+const theoryFieldClass = 'control-field';
 
 export function GrammarPage() {
   const navigate = useNavigate();
@@ -87,9 +88,15 @@ export function GrammarPage() {
             Темы из уроков равноправны — выбирай ту, которую хочешь разобрать.
           </p>
         </div>
-        <button className="secondary-button" type="button" onClick={() => setShowAdd(!showAdd)}>
-          {showAdd ? 'Закрыть' : '+ Добавить тему'}
-        </button>
+        <Button
+          variant="secondary"
+          icon={showAdd ? 'close' : 'plus'}
+          aria-expanded={showAdd}
+          aria-controls="grammar-add-form"
+          onClick={() => setShowAdd(!showAdd)}
+        >
+          {showAdd ? 'Закрыть' : 'Добавить тему'}
+        </Button>
       </div>
       {displayedError && (
         <p className="form-message error" role="alert">
@@ -97,7 +104,7 @@ export function GrammarPage() {
         </p>
       )}
       {showAdd && (
-        <form className="vocab-add" onSubmit={(event) => void add(event)}>
+        <form id="grammar-add-form" className="vocab-add" onSubmit={(event) => void add(event)}>
           <label>
             Название темы
             <input required value={title} onChange={(event) => setTitle(event.target.value)} />
@@ -110,21 +117,18 @@ export function GrammarPage() {
               onChange={(event) => setSummary(event.target.value)}
             />
           </label>
-          <button className="primary-button form-action" type="submit" disabled={pending}>
+          <Button className="justify-self-start" type="submit" disabled={pending}>
             {pending ? 'Добавляем…' : 'Добавить тему'}
-          </button>
+          </Button>
         </form>
       )}
-      <div className="vocab-toolbar">
-        <label className="visually-hidden" htmlFor="grammar-search">
-          Найти тему
-        </label>
-        <input
+      <div className="mt-10">
+        <SearchField
           id="grammar-search"
-          type="search"
+          label="Найти тему"
           placeholder="Поиск по темам"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onValueChange={setQuery}
         />
       </div>
       {loading ? (
