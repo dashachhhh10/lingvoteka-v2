@@ -1,5 +1,11 @@
 export async function api<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, { credentials: 'same-origin', ...options });
+  let response: Response;
+  try {
+    response = await fetch(url, { credentials: 'same-origin', ...options });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    throw new Error('Не удалось связаться с сервером. Проверь соединение и попробуй снова.');
+  }
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const message =

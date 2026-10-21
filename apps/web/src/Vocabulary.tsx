@@ -292,6 +292,7 @@ export function ReviewPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [queue, setQueue] = useState<Queue | null>(null);
+  const [queueAttempt, setQueueAttempt] = useState(0);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [pending, setPending] = useState(false);
@@ -307,10 +308,19 @@ export function ReviewPage() {
   const ignoreClickUntilRef = useRef(0);
   const [error, setError] = useState('');
   useEffect(() => {
+    let active = true;
     void api<Queue>('/api/reviews/queue')
-      .then(setQueue)
-      .catch((reason: Error) => setError(reason.message));
-  }, []);
+      .then((result) => {
+        if (active) setQueue(result);
+      })
+      .catch((reason: unknown) => {
+        if (active)
+          setError(reason instanceof Error ? reason.message : 'Не удалось загрузить карточки');
+      });
+    return () => {
+      active = false;
+    };
+  }, [queueAttempt]);
   const card = queue?.cards[index];
   useEffect(() => {
     ignoreClickUntilRef.current = 0;
@@ -451,7 +461,20 @@ export function ReviewPage() {
           </p>
         )}
         {!queue ? (
-          <p className="subtle">Подбираем карточки…</p>
+          error ? (
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                setError('');
+                setQueueAttempt((current) => current + 1);
+              }}
+            >
+              Попробовать снова
+            </button>
+          ) : (
+            <p className="subtle">Подбираем карточки…</p>
+          )
         ) : !card ? (
           <div className="review-complete">
             <h1>На сегодня всё</h1>
