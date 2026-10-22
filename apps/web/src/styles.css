@@ -421,6 +421,7 @@ input,
   flex: 0 0 auto;
   width: 100%;
   height: clamp(112px, 11vw, 156px);
+  margin-bottom: calc(96px + env(safe-area-inset-bottom));
   overflow: hidden;
   pointer-events: none;
 }
@@ -433,20 +434,17 @@ input,
   height: 100%;
 }
 .page-vine-stem,
-.page-vine-foliage,
-.page-vine-curl {
+.page-vine-foliage {
   fill: none;
   stroke: var(--vine-olive);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .page-vine-stem,
-.page-vine-foliage,
-.page-vine-curl {
+.page-vine-foliage {
   stroke-width: 1.35;
 }
-.page-vine-stem,
-.page-vine-curl {
+.page-vine-stem {
   opacity: 0.62;
 }
 .page-vine-foliage {

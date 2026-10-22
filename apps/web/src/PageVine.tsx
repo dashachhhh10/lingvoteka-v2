@@ -42,7 +42,11 @@ export function PageVine() {
           <path d={stem} />
         </g>
         <g className="page-vine-foliage page-vine-sprig page-vine-sprig-one">
-          <path d="M 340 120 C 329 102 328 88 337 72" />
+          <path d="M 340 120 C 329 102 328 88 337 72 C 340 62 345 57 352 57" />
+          <path
+            className="page-vine-lemon"
+            d="M 352 57 C 360 55 367 61 367 69 C 367 77 361 83 354 82 C 346 82 341 76 342 69 C 342 63 347 58 352 57 Z"
+          />
           <path d="M 331 103 C 313 98 307 85 316 76 C 331 81 338 94 331 103 Z" />
           <path d="M 334 96 C 348 85 360 88 366 97 C 355 107 342 105 334 96 Z" />
         </g>
@@ -57,7 +61,11 @@ export function PageVine() {
           />
         </g>
         <g className="page-vine-foliage page-vine-sprig page-vine-sprig-three">
-          <path d="M 1020 109 C 1011 94 1012 78 1024 63" />
+          <path d="M 1020 109 C 1011 94 1012 78 1024 63 C 1028 50 1034 44 1040 44" />
+          <path
+            className="page-vine-lemon"
+            d="M 1040 44 C 1048 42 1055 48 1055 56 C 1055 64 1049 70 1042 69 C 1034 69 1029 63 1030 56 C 1030 50 1035 45 1040 44 Z"
+          />
           <path d="M 1015 87 C 999 81 996 69 1004 59 C 1018 65 1024 77 1015 87 Z" />
           <path d="M 1018 79 C 1033 68 1047 71 1052 81 C 1041 91 1027 91 1018 79 Z" />
         </g>
@@ -70,10 +78,6 @@ export function PageVine() {
             d="M 1263 102 C 1270 101 1275 106 1275 113 C 1275 120 1270 125 1263 125 C 1256 125 1252 119 1253 113 C 1253 107 1257 103 1263 102 Z"
           />
         </g>
-        <path
-          className="page-vine-curl"
-          d="M 535 135 C 521 119 522 106 532 100 C 542 94 550 104 544 112 C 540 117 532 114 534 109"
-        />
       </svg>
     </div>
   );

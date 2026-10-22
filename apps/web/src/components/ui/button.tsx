@@ -51,10 +51,10 @@ function Content({ children, icon }: Pick<Appearance, 'children' | 'icon'>) {
 }
 
 function classes(variant: Variant, icon: ActionIcon | undefined, className: string) {
-  return `control-button control-${variant}${icon ? ' control-split' : ''} ${className}`;
+  return `control-button control-${variant}${icon ? ' control-with-icon' : ''} ${className}`;
 }
 
-/** Adapted from the supplied pill + circular arrow button, using native React elements. */
+/** A single pill surface with its action icon inside. */
 export function Button({
   variant = 'primary',
   icon,

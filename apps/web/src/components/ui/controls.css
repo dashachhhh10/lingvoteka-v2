@@ -31,34 +31,20 @@
 .control-button:active:not(:disabled) {
   transform: scale(0.98);
 }
-.control-split {
-  gap: 3px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-.control-action-label,
-.control-action-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 48px;
-  border: 1px solid var(--control-border);
-  border-radius: 999px;
-  background: var(--control-fill);
-  transition:
-    background-color 200ms ease,
-    border-color 200ms ease;
+.control-with-icon {
+  gap: 12px;
 }
 .control-action-label {
   min-width: 0;
-  padding: 12px 22px;
   text-align: center;
 }
 .control-action-icon {
   position: relative;
-  align-self: stretch;
-  flex: 0 0 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  height: 24px;
   overflow: hidden;
 }
 .control-arrow-out,
@@ -69,26 +55,23 @@
 .control-arrow-in {
   transform: translate(-32px, 32px);
 }
-.control-split:active:not(:disabled) .control-action-label,
-.control-split:active:not(:disabled) .control-action-icon {
+.control-button:active:not(:disabled) {
   background: var(--control-hover);
 }
-.control-split:active:not(:disabled) .control-arrow-out {
+.control-with-icon:active:not(:disabled) .control-arrow-out {
   transform: translate(32px, -32px);
 }
-.control-split:active:not(:disabled) .control-arrow-in {
+.control-with-icon:active:not(:disabled) .control-arrow-in {
   transform: translate(0, 0);
 }
 @media (hover: hover) and (pointer: fine) {
-  .control-button:not(.control-split):hover:not(:disabled),
-  .control-split:hover:not(:disabled) .control-action-label,
-  .control-split:hover:not(:disabled) .control-action-icon {
+  .control-button:hover:not(:disabled) {
     background: var(--control-hover);
   }
-  .control-split:hover:not(:disabled) .control-arrow-out {
+  .control-with-icon:hover:not(:disabled) .control-arrow-out {
     transform: translate(32px, -32px);
   }
-  .control-split:hover:not(:disabled) .control-arrow-in {
+  .control-with-icon:hover:not(:disabled) .control-arrow-in {
     transform: translate(0, 0);
   }
 }
