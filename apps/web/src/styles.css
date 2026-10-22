@@ -417,6 +417,10 @@ input,
   margin: 0 auto;
   padding: 48px 32px 90px;
 }
+/* Route focus belongs to the content container, not a visible control. */
+.page-content:focus-visible {
+  outline: none;
+}
 .page-vine {
   flex: 0 0 auto;
   width: 100%;
