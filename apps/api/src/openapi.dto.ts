@@ -162,12 +162,17 @@ export class ReviewQueueCardDto {
   @ApiProperty({ type: String }) term!: string;
   @ApiProperty({ type: String }) translation!: string;
   @ApiProperty({ type: String, nullable: true }) example!: string | null;
-  @ApiProperty({ type: String, enum: ['new', 'due'] }) kind!: 'new' | 'due';
+  @ApiProperty({ type: String, enum: ['new', 'due', 'practice'] }) kind!:
+    'new' | 'due' | 'practice';
 }
 
 export class ReviewQueueDto {
   @ApiProperty({ type: Number }) dueCount!: number;
   @ApiProperty({ type: Number }) newCount!: number;
+  @ApiProperty({ type: () => [ReviewQueueCardDto] }) cards!: ReviewQueueCardDto[];
+}
+
+export class PracticeQueueDto {
   @ApiProperty({ type: () => [ReviewQueueCardDto] }) cards!: ReviewQueueCardDto[];
 }
 

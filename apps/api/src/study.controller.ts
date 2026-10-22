@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -33,6 +34,7 @@ import {
   AddVocabularyDto,
   CategoryQueueDto,
   RatingInputDto,
+  PracticeQueueDto,
   ReviewQueueDto,
   ReviewResultDto,
   VocabItemDto,
@@ -40,7 +42,6 @@ import {
 } from './openapi.dto.js';
 
 const scheduler = fsrs({ enable_fuzz: false });
-const NEW_PER_DAY = 10;
 
 function parseCard(value: Prisma.JsonValue): Card {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -170,15 +171,9 @@ export class StudyController {
   async queue(@Req() request: Request) {
     const userId = await this.userId(request);
     const now = new Date();
-    const start = new Date(now);
-    start.setUTCHours(0, 0, 0, 0);
-    const introduced = await prisma.reviewState.count({
-      where: { userId, introducedAt: { gte: start } },
-    });
     const due = await prisma.reviewState.findMany({
       where: { userId, due: { lte: now } },
       orderBy: { due: 'asc' },
-      take: 40,
       include: {
         flashcard: {
           include: {
@@ -187,21 +182,17 @@ export class StudyController {
         },
       },
     });
-    const remainingNew = Math.max(0, NEW_PER_DAY - introduced);
-    const fresh = remainingNew
-      ? await prisma.flashcard.findMany({
-          where: {
-            kind: 'IT_TO_RU',
-            vocabItem: { ownerId: userId },
-            reviewStates: { none: { userId } },
-          },
-          orderBy: { createdAt: 'asc' },
-          take: remainingNew,
-          include: {
-            vocabItem: { select: { term: true, translation: true, example: true } },
-          },
-        })
-      : [];
+    const fresh = await prisma.flashcard.findMany({
+      where: {
+        kind: 'IT_TO_RU',
+        vocabItem: { ownerId: userId },
+        reviewStates: { none: { userId } },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        vocabItem: { select: { term: true, translation: true, example: true } },
+      },
+    });
     return {
       dueCount: due.length,
       newCount: fresh.length,
@@ -213,6 +204,48 @@ export class StudyController {
         })),
         ...fresh.map((card) => ({ id: card.id, ...card.vocabItem, kind: 'new' as const })),
       ],
+    };
+  }
+
+  @Get('reviews/practice')
+  @ApiOperation({ summary: 'Карточки для свободной практики без изменения расписания' })
+  @ApiOkResponse({ type: PracticeQueueDto })
+  @ApiBadRequestResponse({ description: 'Неверная категория слов' })
+  async practice(
+    @Req() request: Request,
+    @Query('topic') topic?: string,
+    @Query('partOfSpeech') partOfSpeech?: string,
+  ) {
+    const userId = await this.userId(request);
+    for (const value of [topic, partOfSpeech]) {
+      if (value !== undefined && (typeof value !== 'string' || !value.trim() || value.length > 100))
+        throw new BadRequestException('Выбери категорию слов');
+    }
+    if (topic && partOfSpeech) throw new BadRequestException('Выбери одну категорию для занятия');
+    const cards = await prisma.flashcard.findMany({
+      where: {
+        kind: 'IT_TO_RU',
+        vocabItem: {
+          ownerId: userId,
+          ...(topic === '__uncategorized__'
+            ? { semanticTopic: null }
+            : topic
+              ? { semanticTopic: topic }
+              : {}),
+          ...(partOfSpeech === '__uncategorized__'
+            ? { partOfSpeech: null }
+            : partOfSpeech
+              ? { partOfSpeech }
+              : {}),
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        vocabItem: { select: { term: true, translation: true, example: true } },
+      },
+    });
+    return {
+      cards: cards.map((card) => ({ id: card.id, ...card.vocabItem, kind: 'practice' as const })),
     };
   }
 

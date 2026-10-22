@@ -30,7 +30,8 @@ type QueueCard = {
   term: string;
   translation: string;
   example: string | null;
-  kind: 'new' | 'due';
+  kind: 'new' | 'due' | 'practice';
+  reinforcement?: boolean;
 };
 type Queue = { dueCount: number; newCount: number; cards: QueueCard[] };
 const wordCount = (count: number) =>
@@ -313,6 +314,9 @@ export function ReviewPage() {
   const queryClient = useQueryClient();
   const [queue, setQueue] = useState<Queue | null>(null);
   const [queueAttempt, setQueueAttempt] = useState(0);
+  const [mode, setMode] = useState<'scheduled' | 'practice'>('scheduled');
+  const [practiceCategory, setPracticeCategory] = useState('all');
+  const [showPracticePicker, setShowPracticePicker] = useState(false);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [pending, setPending] = useState(false);
@@ -334,6 +338,28 @@ export function ReviewPage() {
   } | null>(null);
   const ignoreClickUntilRef = useRef(0);
   const [error, setError] = useState('');
+  const vocabularyQuery = useQuery({
+    queryKey: ['vocabulary'],
+    queryFn: () => api<VocabItem[]>('/api/vocabulary'),
+  });
+  const practiceCategories = useMemo(() => {
+    const items = vocabularyQuery.data ?? [];
+    const topics = [
+      ...new Set(items.map((item) => item.semanticTopic).filter((item): item is string => !!item)),
+    ]
+      .sort((a, b) => a.localeCompare(b, 'ru'))
+      .map((name) => ({ value: name, label: name }));
+    if (items.some((item) => !item.semanticTopic))
+      topics.push({ value: '__uncategorized__', label: 'Без темы' });
+    const partsOfSpeech = [
+      ...new Set(items.map((item) => item.partOfSpeech).filter((item): item is string => !!item)),
+    ]
+      .sort((a, b) => a.localeCompare(b, 'ru'))
+      .map((name) => ({ value: name, label: name }));
+    if (items.some((item) => !item.partOfSpeech))
+      partsOfSpeech.push({ value: '__uncategorized__', label: 'Без части речи' });
+    return { topics, partsOfSpeech };
+  }, [vocabularyQuery.data]);
   useEffect(() => {
     let active = true;
     void api<Queue>('/api/reviews/queue')
@@ -349,6 +375,38 @@ export function ReviewPage() {
     };
   }, [queueAttempt]);
   const card = queue?.cards[index];
+  async function startPractice() {
+    if (pending) return;
+    setPending(true);
+    setError('');
+    try {
+      const query = practiceCategory.startsWith('topic:')
+        ? `?topic=${encodeURIComponent(practiceCategory.slice(6))}`
+        : practiceCategory.startsWith('speech:')
+          ? `?partOfSpeech=${encodeURIComponent(practiceCategory.slice(7))}`
+          : '';
+      const result = await api<{ cards: QueueCard[] }>(`/api/reviews/practice${query}`);
+      setMode('practice');
+      setQueue({ dueCount: 0, newCount: 0, cards: result.cards });
+      setIndex(0);
+      setRevealed(false);
+      setShowPracticePicker(false);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Не удалось загрузить тему');
+    } finally {
+      setPending(false);
+    }
+  }
+  function startScheduled() {
+    if (pending) return;
+    setMode('scheduled');
+    setQueue(null);
+    setIndex(0);
+    setRevealed(false);
+    setShowPracticePicker(false);
+    setError('');
+    setQueueAttempt((current) => current + 1);
+  }
   async function rate(rating: number, swipeDirection?: -1 | 1) {
     if (!card || ratingLock.current) return;
     ratingLock.current = true;
@@ -368,19 +426,29 @@ export function ReviewPage() {
       });
     });
     try {
+      const scheduledRating = mode === 'scheduled' && !card.reinforcement;
       const result = await Promise.allSettled([
         exit,
-        api(`/api/reviews/${card.id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rating }),
-        }),
+        scheduledRating
+          ? api(`/api/reviews/${card.id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rating }),
+            })
+          : Promise.resolve(),
       ]);
       if (result[1].status === 'rejected') throw result[1].reason;
-      void Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['reviews'] }),
-        queryClient.invalidateQueries({ queryKey: ['vocabulary'] }),
-      ]);
+      if (scheduledRating)
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['reviews'] }),
+          queryClient.invalidateQueries({ queryKey: ['vocabulary'] }),
+        ]);
+      if (rating <= 2)
+        setQueue((current) =>
+          current
+            ? { ...current, cards: [...current.cards, { ...card, reinforcement: true }] }
+            : current,
+        );
       setRevealed(false);
       setIndex((current) => current + 1);
     } catch (reason) {
@@ -522,6 +590,54 @@ export function ReviewPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+  const practicePicker = (
+    <section className="mt-8 rounded-3xl border border-line bg-surface p-5 sm:p-7">
+      <h2 className="m-0 text-xl font-semibold tracking-tight">Повторить слова по теме</h2>
+      <p className="mb-5 mt-2 text-sm leading-relaxed text-muted">
+        Здесь доступны все слова, даже если их срок ещё не подошёл. Свободная практика не меняет
+        расписание повторений.
+      </p>
+      <label className="mb-2 block text-sm font-medium" htmlFor="practice-topic">
+        Тема или часть речи
+      </label>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <SelectField
+          id="practice-topic"
+          className="w-full sm:min-w-64"
+          value={practiceCategory}
+          onChange={(event) => setPracticeCategory(event.target.value)}
+        >
+          <option value="all">Все слова</option>
+          <optgroup label="Лексические темы">
+            {practiceCategories.topics.map((topic) => (
+              <option key={topic.value} value={`topic:${topic.value}`}>
+                {topic.label}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Части речи">
+            {practiceCategories.partsOfSpeech.map((part) => (
+              <option key={part.value} value={`speech:${part.value}`}>
+                {part.label}
+              </option>
+            ))}
+          </optgroup>
+        </SelectField>
+        <Button disabled={pending} onClick={() => void startPractice()}>
+          Начать практику
+        </Button>
+      </div>
+      {vocabularyQuery.isError && (
+        <button
+          type="button"
+          className="mt-4 text-sm text-muted underline underline-offset-4"
+          onClick={() => void vocabularyQuery.refetch()}
+        >
+          Не удалось загрузить список тем. Попробовать снова
+        </button>
+      )}
+    </section>
+  );
   return (
     <div className="review-page">
       <header className="review-topbar">
@@ -533,7 +649,19 @@ export function ReviewPage() {
         </button>
       </header>
       <main className="review-main">
-        <p className="eyebrow">ПОВТОРЕНИЕ</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="eyebrow">ПОВТОРЕНИЕ</p>
+          {card && (
+            <button
+              type="button"
+              className="text-sm font-medium text-olive underline underline-offset-4"
+              onClick={() => setShowPracticePicker((current) => !current)}
+            >
+              {showPracticePicker ? 'Скрыть выбор темы' : 'Выбрать тему'}
+            </button>
+          )}
+        </div>
+        {card && showPracticePicker && practicePicker}
         {error && (
           <p className="form-message error" role="alert">
             {error}
@@ -556,10 +684,41 @@ export function ReviewPage() {
           )
         ) : !card ? (
           <div className="review-complete">
-            <h1>На сегодня всё</h1>
-            <p>Карточки вернутся, когда подойдёт время следующего повторения.</p>
-            <Link className="action-link" to="/">
-              Вернуться на главную ↗
+            <h1>
+              {mode === 'practice'
+                ? queue.cards.length
+                  ? 'Практика закончена'
+                  : 'В этой теме пока нет слов'
+                : queue.cards.length
+                  ? 'Занятие закончено'
+                  : vocabularyQuery.isPending
+                    ? 'Проверяем словарь'
+                    : vocabularyQuery.data?.length
+                      ? 'По плану пока нет карточек'
+                      : 'В словаре пока нет слов'}
+            </h1>
+            <p>
+              {mode === 'practice'
+                ? 'Можно выбрать другую тему или пройти эту ещё раз.'
+                : queue.cards.length
+                  ? 'Слова, которые было трудно вспомнить, ты повторила ещё раз. Следующий срок рассчитан по FSRS.'
+                  : vocabularyQuery.isPending
+                    ? 'Загружаем темы и слова для свободной практики.'
+                    : vocabularyQuery.data?.length
+                      ? 'Выбери тему и потренируй слова сейчас, не дожидаясь следующего срока.'
+                      : 'Добавь материал или слово в словарь, чтобы появились карточки.'}
+            </p>
+            {mode === 'practice' && (
+              <Button variant="secondary" onClick={startScheduled}>
+                Вернуться к плану
+              </Button>
+            )}
+            {practicePicker}
+            <Link
+              className="mt-6 inline-block text-sm text-muted underline underline-offset-4"
+              to="/"
+            >
+              Вернуться на главную
             </Link>
           </div>
         ) : (
@@ -568,9 +727,17 @@ export function ReviewPage() {
               <span>
                 {index + 1} / {queue.cards.length}
               </span>
-              <span>{card.kind === 'new' ? 'Новое слово' : 'Повторение'}</span>
+              <span>
+                {card.reinforcement
+                  ? 'Ещё одна попытка'
+                  : card.kind === 'practice'
+                    ? 'Свободная практика'
+                    : card.kind === 'new'
+                      ? 'Новое слово'
+                      : 'Повторение'}
+              </span>
             </div>
-            <div className="flashcard-motion" key={card.id} ref={cardMotionRef}>
+            <div className="flashcard-motion" key={`${card.id}-${index}`} ref={cardMotionRef}>
               <button
                 className="flashcard-button"
                 type="button"

@@ -653,9 +653,9 @@ function TodayPage() {
               На сегодня всё
             </h2>
             <p className="mb-7 mt-4 text-muted">
-              Можно добавить новый материал или потренировать грамматику.
+              По расписанию сейчас нет слов, но любую тему можно повторить в свободной практике.
             </p>
-            <ActionLink to="/materials/new">Добавить материал</ActionLink>
+            <ActionLink to="/review">Выбрать тему</ActionLink>
           </div>
         )}
       </section>
