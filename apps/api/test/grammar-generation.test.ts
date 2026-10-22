@@ -116,3 +116,94 @@ test('accepts a qualified rule without a second AI request', async () => {
     },
   );
 });
+
+const areTopic = {
+  title: 'Presente indicativo dei verbi in -are',
+  summary: 'Глаголы первого спряжения в настоящем времени.',
+  excerpts: [],
+};
+
+function areAnswer() {
+  return {
+    theory: {
+      when: 'Для регулярных действий в настоящем.',
+      formation: 'Убери -are и добавь личное окончание.',
+      examples: [{ italian: 'Io parlo.', russian: 'Я говорю.' }],
+      mistakes: [] as string[],
+    },
+    exercises: [
+      {
+        prompt: 'Io ___ italiano. (parlare)',
+        options: ['parlo', 'parli', 'parla', 'parliamo'],
+        answerIndex: 0,
+        explanation: 'Для io у parlare форма parlo.',
+      },
+      {
+        prompt: 'Tu ___ ogni giorno. (studiare)',
+        options: ['studio', 'studi', 'studia', 'studiamo'],
+        answerIndex: 1,
+        explanation: 'Для tu у studiare форма studi.',
+      },
+      {
+        prompt: 'Noi ___ in ufficio. (lavorare)',
+        options: ['lavoro', 'lavori', 'lavoriamo', 'lavorano'],
+        answerIndex: 2,
+        explanation: 'Для noi у lavorare форма lavoriamo.',
+      },
+      {
+        prompt: 'Voi ___ a casa. (abitare)',
+        options: ['abito', 'abiti', 'abitiamo', 'abitate'],
+        answerIndex: 3,
+        explanation: 'Для voi у abitare форма abitate.',
+      },
+    ],
+  };
+}
+
+test('retries an -are exercise that uses bere and accepts a corrected set', async () => {
+  const offTopic = areAnswer();
+  offTopic.exercises[0] = {
+    prompt: 'Io ___ un caffè ogni mattina. (bere)',
+    options: ['bevi', 'bevo', 'beviamo', 'bevonno'],
+    answerIndex: 1,
+    explanation: 'Для io с глаголом первой группы окончание -o.',
+  };
+  await withGeminiReplies([offTopic, areAnswer()], async (requests) => {
+    const result = await generateGrammarContent(areTopic);
+    assert.equal(result.exercises.length, 4);
+    assert.equal(result.exercises[0].options[result.exercises[0].answerIndex], 'parlo');
+    assert.equal(requests.length, 2);
+    assert.match(requests[1].prompt, /не используй глаголы на -ere/i);
+  });
+});
+
+test('rejects a repeated off-topic -are exercise', async () => {
+  const offTopic = areAnswer();
+  offTopic.exercises[0].prompt = 'Io ___ un caffè. (bere)';
+  offTopic.exercises[0].options[0] = 'bevo';
+  await withGeminiReplies([offTopic, offTopic], async () => {
+    await assert.rejects(generateGrammarContent(areTopic), /задание вне темы глаголов на -are/);
+  });
+});
+
+test('checks the selected -are form against the person and infinitive', async () => {
+  const wrongForm = areAnswer();
+  wrongForm.exercises[1].answerIndex = 0;
+  await withGeminiReplies([wrongForm, areAnswer()], async (requests) => {
+    const result = await generateGrammarContent(areTopic);
+    assert.equal(result.exercises[1].options[result.exercises[1].answerIndex], 'studi');
+    assert.equal(requests.length, 2);
+  });
+});
+
+test('drops a mistake that calls the same written form correct and incorrect', async () => {
+  const reply = areAnswer();
+  reply.theory.mistakes = [
+    'Ошибка: *studiamo* вместо неверного *studiamo* с лишними буквами.',
+    'Для io у parlare нужно parlo, а не parli.',
+  ];
+  await withGeminiReplies([reply], async () => {
+    const result = await generateGrammarContent(areTopic);
+    assert.deepEqual(result.theory.mistakes, ['Для io у parlare нужно parlo, а не parli.']);
+  });
+});
