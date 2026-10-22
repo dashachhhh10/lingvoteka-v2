@@ -37,12 +37,15 @@ export class AppController {
   @ApiOkResponse({
     schema: {
       type: 'object',
-      required: ['status'],
-      properties: { status: { type: 'string', example: 'ok' } },
+      required: ['status', 'revision'],
+      properties: {
+        status: { type: 'string', example: 'ok' },
+        revision: { type: 'string', nullable: true, description: 'Git-ревизия деплоя Railway' },
+      },
     },
   })
   health() {
-    return { status: 'ok' };
+    return { status: 'ok', revision: process.env.RAILWAY_GIT_COMMIT_SHA ?? null };
   }
 
   @Get('me')
