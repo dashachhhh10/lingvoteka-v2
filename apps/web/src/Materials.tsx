@@ -708,8 +708,13 @@ export function MaterialDetailPage() {
           <div className="review-heading">
             <div>
               <h2>Сохранённые записи</h2>
-              <p>Они доступны для повторения и практики.</p>
+              <p>Слова этого урока можно повторять отдельно от общей очереди.</p>
             </div>
+            {material.vocabulary.length > 0 && (
+              <ActionLink to={`/review?materialId=${encodeURIComponent(material.id)}`}>
+                Карточки этого урока
+              </ActionLink>
+            )}
           </div>
           <section className="review-section">
             <h3>Слова и выражения</h3>

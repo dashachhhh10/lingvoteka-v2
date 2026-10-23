@@ -8,7 +8,7 @@ import {
   type TouchEvent,
 } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import gsap from 'gsap';
 import { api } from './api';
 import { ActionLink, Button } from './components/ui/button';
@@ -311,11 +311,15 @@ export function VocabularyPage() {
 
 export function ReviewPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const materialId = searchParams.get('materialId');
   const queryClient = useQueryClient();
   const [queue, setQueue] = useState<Queue | null>(null);
   const [queueAttempt, setQueueAttempt] = useState(0);
   const [mode, setMode] = useState<'scheduled' | 'practice'>('scheduled');
-  const [practiceCategory, setPracticeCategory] = useState('all');
+  const [practiceCategory, setPracticeCategory] = useState(
+    materialId ? `material:${materialId}` : 'all',
+  );
   const [showPracticePicker, setShowPracticePicker] = useState(false);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -358,11 +362,34 @@ export function ReviewPage() {
       .map((name) => ({ value: name, label: name }));
     if (items.some((item) => !item.partOfSpeech))
       partsOfSpeech.push({ value: '__uncategorized__', label: 'Без части речи' });
-    return { topics, partsOfSpeech };
+    const materials = new Map<string, { value: string; label: string; createdAt: string }>();
+    for (const item of items)
+      for (const { material } of item.materials)
+        materials.set(material.id, {
+          value: material.id,
+          label: material.title,
+          createdAt: material.createdAt,
+        });
+    return {
+      topics,
+      partsOfSpeech,
+      materials: [...materials.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    };
   }, [vocabularyQuery.data]);
+  const materialTitle = practiceCategories.materials.find(
+    (item) => item.value === materialId,
+  )?.label;
   useEffect(() => {
     let active = true;
-    void api<Queue>('/api/reviews/queue')
+    setQueue(null);
+    setIndex(0);
+    setRevealed(false);
+    setMode('scheduled');
+    setPracticeCategory(materialId ? `material:${materialId}` : 'all');
+    setError('');
+    void api<Queue>(
+      `/api/reviews/queue${materialId ? `?materialId=${encodeURIComponent(materialId)}` : ''}`,
+    )
       .then((result) => {
         if (active) setQueue(result);
       })
@@ -373,7 +400,7 @@ export function ReviewPage() {
     return () => {
       active = false;
     };
-  }, [queueAttempt]);
+  }, [queueAttempt, materialId]);
   const card = queue?.cards[index];
   async function startPractice() {
     if (pending) return;
@@ -384,7 +411,9 @@ export function ReviewPage() {
         ? `?topic=${encodeURIComponent(practiceCategory.slice(6))}`
         : practiceCategory.startsWith('speech:')
           ? `?partOfSpeech=${encodeURIComponent(practiceCategory.slice(7))}`
-          : '';
+          : practiceCategory.startsWith('material:')
+            ? `?materialId=${encodeURIComponent(practiceCategory.slice(9))}`
+            : '';
       const result = await api<{ cards: QueueCard[] }>(`/api/reviews/practice${query}`);
       setMode('practice');
       setQueue({ dueCount: 0, newCount: 0, cards: result.cards });
@@ -592,13 +621,13 @@ export function ReviewPage() {
   });
   const practicePicker = (
     <section className="mt-8 rounded-3xl border border-line bg-surface p-5 sm:p-7">
-      <h2 className="m-0 text-xl font-semibold tracking-tight">Повторить слова по теме</h2>
+      <h2 className="m-0 text-xl font-semibold tracking-tight">Повторить слова в любое время</h2>
       <p className="mb-5 mt-2 text-sm leading-relaxed text-muted">
         Здесь доступны все слова, даже если их срок ещё не подошёл. Свободная практика не меняет
         расписание повторений.
       </p>
       <label className="mb-2 block text-sm font-medium" htmlFor="practice-topic">
-        Тема или часть речи
+        Тема, часть речи или материал
       </label>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <SelectField
@@ -619,6 +648,13 @@ export function ReviewPage() {
             {practiceCategories.partsOfSpeech.map((part) => (
               <option key={part.value} value={`speech:${part.value}`}>
                 {part.label}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Материалы">
+            {practiceCategories.materials.map((material) => (
+              <option key={material.value} value={`material:${material.value}`}>
+                {material.label}
               </option>
             ))}
           </optgroup>
@@ -657,10 +693,20 @@ export function ReviewPage() {
               className="text-sm font-medium text-olive underline underline-offset-4"
               onClick={() => setShowPracticePicker((current) => !current)}
             >
-              {showPracticePicker ? 'Скрыть выбор темы' : 'Выбрать тему'}
+              {showPracticePicker ? 'Скрыть выбор' : 'Выбрать слова'}
             </button>
           )}
         </div>
+        {materialId && mode === 'scheduled' && (
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-line bg-surface px-5 py-3 text-sm">
+            <span>
+              Карточки из материала: <strong>{materialTitle ?? 'выбранный урок'}</strong>
+            </span>
+            <Link className="font-medium text-olive underline underline-offset-4" to="/review">
+              Вся очередь
+            </Link>
+          </div>
+        )}
         {card && showPracticePicker && practicePicker}
         {error && (
           <p className="form-message error" role="alert">
@@ -688,24 +734,26 @@ export function ReviewPage() {
               {mode === 'practice'
                 ? queue.cards.length
                   ? 'Практика закончена'
-                  : 'В этой теме пока нет слов'
+                  : 'В выбранной группе пока нет слов'
                 : queue.cards.length
                   ? 'Занятие закончено'
                   : vocabularyQuery.isPending
                     ? 'Проверяем словарь'
                     : vocabularyQuery.data?.length
-                      ? 'По плану пока нет карточек'
+                      ? materialId
+                        ? 'В этом материале пока нет карточек по плану'
+                        : 'По плану пока нет карточек'
                       : 'В словаре пока нет слов'}
             </h1>
             <p>
               {mode === 'practice'
-                ? 'Можно выбрать другую тему или пройти эту ещё раз.'
+                ? 'Можно выбрать другую группу слов или пройти эту ещё раз.'
                 : queue.cards.length
                   ? 'Слова, которые было трудно вспомнить, ты повторила ещё раз. Следующий срок рассчитан по FSRS.'
                   : vocabularyQuery.isPending
                     ? 'Загружаем темы и слова для свободной практики.'
                     : vocabularyQuery.data?.length
-                      ? 'Выбери тему и потренируй слова сейчас, не дожидаясь следующего срока.'
+                      ? 'Выбери тему или материал и потренируй слова сейчас, не дожидаясь следующего срока.'
                       : 'Добавь материал или слово в словарь, чтобы появились карточки.'}
             </p>
             {mode === 'practice' && (

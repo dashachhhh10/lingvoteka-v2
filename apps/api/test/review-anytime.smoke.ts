@@ -62,23 +62,51 @@ try {
     where: { id: { in: sport.map((item) => item.id) } },
     data: { semanticTopic: 'Спорт', partOfSpeech: 'Существительное', categoryStatus: 'READY' },
   });
+  const material = await prisma.material.create({
+    data: {
+      ownerId: user.id,
+      title: 'Synthetic sports lesson',
+      status: 'READY',
+      vocabulary: {
+        create: sport.map((item) => ({ vocabItemId: item.id })),
+      },
+    },
+  });
 
   const scheduled = await request<{ cards: { id: string }[]; newCount: number }>(
     '/api/reviews/queue',
   );
   if (scheduled.newCount !== 12 || scheduled.cards.length !== 12)
     throw new Error('Newly added words were capped or missing from the planned queue');
+  const materialQueue = await request<{ cards: { id: string }[]; newCount: number }>(
+    `/api/reviews/queue?materialId=${material.id}`,
+  );
+  if (materialQueue.newCount !== 3 || materialQueue.cards.length !== 3)
+    throw new Error('Material queue included unrelated cards or missed new words');
 
-  await request(`/api/reviews/${scheduled.cards[0].id}`, {
+  await request(`/api/reviews/${materialQueue.cards[0].id}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rating: 1 }),
   });
+  await prisma.reviewState.updateMany({
+    where: { userId: user.id, flashcardId: materialQueue.cards[0].id },
+    data: { due: new Date(0) },
+  });
+  const mixedMaterialQueue = await request<{ cards: { id: string; kind: string }[] }>(
+    `/api/reviews/queue?materialId=${material.id}`,
+  );
+  if (
+    mixedMaterialQueue.cards.length !== 3 ||
+    mixedMaterialQueue.cards[0].kind !== 'new' ||
+    mixedMaterialQueue.cards[2].kind !== 'due'
+  )
+    throw new Error('Material queue did not put new words before due words');
   const beforePractice = await prisma.reviewEvent.count({
     where: { reviewState: { userId: user.id } },
   });
   const all = await request<{ cards: { id: string; kind: string }[] }>('/api/reviews/practice');
-  if (all.cards.length !== 12 || !all.cards.some((item) => item.id === scheduled.cards[0].id))
+  if (all.cards.length !== 12 || !all.cards.some((item) => item.id === materialQueue.cards[0].id))
     throw new Error('Free practice omitted a word after it was marked forgotten');
   if (all.cards.some((item) => item.kind !== 'practice'))
     throw new Error('Free-practice cards were mislabeled');
@@ -90,6 +118,10 @@ try {
     '/api/reviews/practice?partOfSpeech=%D0%A1%D1%83%D1%89%D0%B5%D1%81%D1%82%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B5',
   );
   if (byPart.cards.length !== 3) throw new Error('Part-of-speech filter returned wrong cards');
+  const byMaterial = await request<{ cards: { id: string }[] }>(
+    `/api/reviews/practice?materialId=${material.id}`,
+  );
+  if (byMaterial.cards.length !== 3) throw new Error('Material practice returned the wrong cards');
   const afterPractice = await prisma.reviewEvent.count({
     where: { reviewState: { userId: user.id } },
   });
@@ -99,7 +131,15 @@ try {
   await register(otherEmail);
   const isolated = await request<{ cards: unknown[] }>('/api/reviews/practice');
   if (isolated.cards.length) throw new Error('Another user can see these practice cards');
-  console.log('review_anytime=PASS new=12 practice=12 topic=3 isolation=PASS');
+  const otherMaterialQueue = await request<{ cards: unknown[] }>(
+    `/api/reviews/queue?materialId=${material.id}`,
+  );
+  const otherMaterialPractice = await request<{ cards: unknown[] }>(
+    `/api/reviews/practice?materialId=${material.id}`,
+  );
+  if (otherMaterialQueue.cards.length || otherMaterialPractice.cards.length)
+    throw new Error('Another user can access material cards');
+  console.log('review_anytime=PASS new=12 practice=12 topic=3 material=3 isolation=PASS');
 } finally {
   await prisma.user.deleteMany({ where: { email: { in: [email, otherEmail] } } });
   await prisma.$disconnect();

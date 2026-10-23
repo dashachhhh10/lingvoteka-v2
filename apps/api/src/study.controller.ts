@@ -24,6 +24,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -167,12 +168,30 @@ export class StudyController {
 
   @Get('reviews/queue')
   @ApiOperation({ summary: 'Получить очередь новых и просроченных карточек' })
+  @ApiQuery({
+    name: 'materialId',
+    required: false,
+    description: 'Ограничить очередь одним своим материалом',
+  })
   @ApiOkResponse({ type: ReviewQueueDto })
-  async queue(@Req() request: Request) {
+  @ApiBadRequestResponse({ description: 'Неверный идентификатор материала' })
+  async queue(@Req() request: Request, @Query('materialId') materialId?: string) {
     const userId = await this.userId(request);
+    if (
+      materialId !== undefined &&
+      (typeof materialId !== 'string' || !materialId.trim() || materialId.length > 100)
+    )
+      throw new BadRequestException('Выбери материал');
+    const materialFilter: Prisma.VocabItemWhereInput = materialId
+      ? { ownerId: userId, materials: { some: { materialId, material: { ownerId: userId } } } }
+      : { ownerId: userId };
     const now = new Date();
     const due = await prisma.reviewState.findMany({
-      where: { userId, due: { lte: now } },
+      where: {
+        userId,
+        due: { lte: now },
+        ...(materialId ? { flashcard: { vocabItem: materialFilter } } : {}),
+      },
       orderBy: { due: 'asc' },
       include: {
         flashcard: {
@@ -185,7 +204,7 @@ export class StudyController {
     const fresh = await prisma.flashcard.findMany({
       where: {
         kind: 'IT_TO_RU',
-        vocabItem: { ownerId: userId },
+        vocabItem: materialFilter,
         reviewStates: { none: { userId } },
       },
       orderBy: { createdAt: 'desc' },
@@ -197,31 +216,45 @@ export class StudyController {
       dueCount: due.length,
       newCount: fresh.length,
       cards: [
+        ...(materialId ? fresh : []).map((card) => ({
+          id: card.id,
+          ...card.vocabItem,
+          kind: 'new' as const,
+        })),
         ...due.map((state) => ({
           id: state.flashcard.id,
           ...state.flashcard.vocabItem,
           kind: 'due' as const,
         })),
-        ...fresh.map((card) => ({ id: card.id, ...card.vocabItem, kind: 'new' as const })),
+        ...(!materialId ? fresh : []).map((card) => ({
+          id: card.id,
+          ...card.vocabItem,
+          kind: 'new' as const,
+        })),
       ],
     };
   }
 
   @Get('reviews/practice')
   @ApiOperation({ summary: 'Карточки для свободной практики без изменения расписания' })
+  @ApiQuery({ name: 'topic', required: false })
+  @ApiQuery({ name: 'partOfSpeech', required: false })
+  @ApiQuery({ name: 'materialId', required: false, description: 'Слова одного своего материала' })
   @ApiOkResponse({ type: PracticeQueueDto })
   @ApiBadRequestResponse({ description: 'Неверная категория слов' })
   async practice(
     @Req() request: Request,
     @Query('topic') topic?: string,
     @Query('partOfSpeech') partOfSpeech?: string,
+    @Query('materialId') materialId?: string,
   ) {
     const userId = await this.userId(request);
-    for (const value of [topic, partOfSpeech]) {
+    for (const value of [topic, partOfSpeech, materialId]) {
       if (value !== undefined && (typeof value !== 'string' || !value.trim() || value.length > 100))
         throw new BadRequestException('Выбери категорию слов');
     }
-    if (topic && partOfSpeech) throw new BadRequestException('Выбери одну категорию для занятия');
+    if ([topic, partOfSpeech, materialId].filter(Boolean).length > 1)
+      throw new BadRequestException('Выбери одну категорию для занятия');
     const cards = await prisma.flashcard.findMany({
       where: {
         kind: 'IT_TO_RU',
@@ -237,6 +270,9 @@ export class StudyController {
             : partOfSpeech
               ? { partOfSpeech }
               : {}),
+          ...(materialId
+            ? { materials: { some: { materialId, material: { ownerId: userId } } } }
+            : {}),
         },
       },
       orderBy: { createdAt: 'desc' },
