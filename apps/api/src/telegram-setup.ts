@@ -1,3 +1,5 @@
+import { synchronizeTelegramAvatar } from './telegram-brand.js';
+import { BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION } from './telegram-message.js';
 import {
   TelegramApiError,
   telegramApi,
@@ -10,15 +12,20 @@ export async function configureTelegramBot(apply: boolean) {
   const webhook = new URL('/api/telegram/webhook', url).toString();
   const secret = telegramWebhookSecret();
   if (!secret) throw new Error('TELEGRAM_BOT_TOKEN is required');
-  const bot = await telegramApi<{ username: string; is_bot: boolean }>('getMe', {});
+  const bot = await telegramApi<{ id: number; username: string; is_bot: boolean }>('getMe', {});
   if (!bot.is_bot || !/^[A-Za-z0-9_]{5,32}$/.test(bot.username))
     throw new Error('Invalid Telegram bot identity');
   if (!apply) return { bot: `@${bot.username}`, miniApp: url, webhook, mode: 'check' };
   console.info(`Telegram bot verified @${bot.username}`);
+  await telegramApi('setMyName', { name: 'Lingvoteka · итальянский' });
+  await telegramApi('setMyDescription', { description: BOT_DESCRIPTION });
+  await telegramApi('setMyShortDescription', { short_description: BOT_SHORT_DESCRIPTION });
   await telegramApi('setMyCommands', {
     commands: [
       { command: 'start', description: 'Открыть Lingvoteka' },
-      { command: 'help', description: 'Как начать заниматься' },
+      { command: 'help', description: 'Как прислать урок и начать заниматься' },
+      { command: 'cards', description: 'Повторить слова' },
+      { command: 'materials', description: 'Открыть мои материалы' },
     ],
   });
   await telegramApi('setChatMenuButton', {
@@ -49,6 +56,7 @@ export async function configureTelegramBot(apply: boolean) {
     throw new Error('Telegram menu verification failed');
   return {
     bot: `@${bot.username}`,
+    botId: bot.id,
     miniApp: url,
     webhook,
     mode: 'apply',
@@ -60,7 +68,9 @@ export async function configureTelegramBot(apply: boolean) {
 export async function initializeTelegramBot() {
   if (process.env.NODE_ENV !== 'production' || !process.env.TELEGRAM_BOT_TOKEN) return;
   try {
-    console.info(`Telegram setup ready ${JSON.stringify(await configureTelegramBot(true))}`);
+    const result = await configureTelegramBot(true);
+    const avatar = await synchronizeTelegramAvatar(result.botId!);
+    console.info(`Telegram setup ready ${JSON.stringify({ ...result, avatar })}`);
   } catch (error) {
     // Fetch errors may contain a token-bearing URL; never log them.
     const knownSettingsErrors = [

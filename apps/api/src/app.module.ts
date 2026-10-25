@@ -4,6 +4,7 @@ import { MaterialsController } from './materials.controller.js';
 import { StudyController } from './study.controller.js';
 import { GrammarController } from './grammar.controller.js';
 import { MaterialQueueService } from './material-queue.js';
+import { TelegramService } from './telegram.service.js';
 import { TelegramController } from './telegram.controller.js';
 
 @Module({
@@ -14,6 +15,6 @@ import { TelegramController } from './telegram.controller.js';
     GrammarController,
     TelegramController,
   ],
-  providers: [MaterialQueueService],
+  providers: [MaterialQueueService, TelegramService],
 })
 export class AppModule {}

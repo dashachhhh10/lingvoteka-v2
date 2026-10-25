@@ -13,6 +13,7 @@ COPY apps/web/package.json apps/web/package.json
 COPY apps/worker/package.json apps/worker/package.json
 RUN pnpm install --frozen-lockfile
 
+COPY assets/telegram assets/telegram
 COPY apps/api apps/api
 RUN pnpm --filter @lingvoteka/api db:generate \
   && pnpm --filter @lingvoteka/api build

@@ -3,6 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Request } from 'express';
 import { configureTelegramBot, initializeTelegramBot } from '../src/telegram-setup.js';
+import type { TelegramService } from '../src/telegram.service.js';
+import { botCopy, parseTelegramMessage } from '../src/telegram-message.js';
+import { telegramButtons } from '../src/telegram-intake.js';
 import { TelegramController } from '../src/telegram.controller.js';
 import { telegramMiniAppUrl, telegramWebhookSecret } from '../src/telegram-bot.js';
 
@@ -11,7 +14,9 @@ test('webhook rejects missing/wrong secret and ignores messages outside a privat
   const oldSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
   process.env.TELEGRAM_BOT_TOKEN = 'synthetic-token';
   process.env.TELEGRAM_WEBHOOK_SECRET = 'synthetic-webhook-secret-32-characters';
-  const controller = new TelegramController();
+  const controller = new TelegramController({
+    accept: async () => {},
+  } as unknown as TelegramService);
   try {
     const request = (header: string, body: unknown) =>
       ({ get: () => header, body }) as unknown as Request;
@@ -59,39 +64,28 @@ test('Mini App launch URLs require HTTPS and exclude credentials and query param
   }
 });
 
-test('private /start replies with a Mini App button without exposing Telegram credentials', async () => {
-  const oldToken = process.env.TELEGRAM_BOT_TOKEN;
-  const oldSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  const oldUrl = process.env.TELEGRAM_MINI_APP_URL;
-  const originalFetch = globalThis.fetch;
-  process.env.TELEGRAM_BOT_TOKEN = 'synthetic-token';
-  process.env.TELEGRAM_WEBHOOK_SECRET = 'synthetic-webhook-secret-32-characters';
+test('start copy and launch buttons are readable and do not expose credentials', () => {
+  const original = process.env.TELEGRAM_MINI_APP_URL;
   process.env.TELEGRAM_MINI_APP_URL = 'https://lingvoteka.vercel.app';
-  const bodies: Record<string, unknown>[] = [];
-  globalThis.fetch = async (_url, options) => {
-    bodies.push(JSON.parse(String(options?.body)));
-    return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { status: 200 });
-  };
   try {
-    const request = {
-      get: () => 'synthetic-webhook-secret-32-characters',
-      body: { update_id: 1, message: { chat: { id: 123, type: 'private' }, text: '/start' } },
-    } as unknown as Request;
-    assert.deepEqual(await new TelegramController().webhook(request), { ok: true });
-    assert.equal(bodies.length, 1);
-    assert.equal(bodies[0]?.chat_id, 123);
-    assert.ok(JSON.stringify(bodies[0]).includes('https://lingvoteka.vercel.app'));
-    assert.ok(!JSON.stringify(bodies[0]).includes('synthetic-token'));
+    const parsed = parseTelegramMessage({
+      update_id: 1,
+      message: {
+        message_id: 1,
+        from: { id: 123, is_bot: false },
+        chat: { id: 123, type: 'private' },
+        text: '/start',
+      },
+    });
+    assert.equal(parsed?.kind, 'start');
+    assert.match(botCopy('start'), /Ciao/);
+    assert.equal(
+      telegramButtons().inline_keyboard[0]?.[0]?.web_app.url,
+      'https://lingvoteka.vercel.app',
+    );
   } finally {
-    globalThis.fetch = originalFetch;
-    for (const [key, value] of Object.entries({
-      TELEGRAM_BOT_TOKEN: oldToken,
-      TELEGRAM_WEBHOOK_SECRET: oldSecret,
-      TELEGRAM_MINI_APP_URL: oldUrl,
-    })) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
+    if (original === undefined) delete process.env.TELEGRAM_MINI_APP_URL;
+    else process.env.TELEGRAM_MINI_APP_URL = original;
   }
 });
 
@@ -116,7 +110,7 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
     calls.push({ method, body: JSON.parse(String(options?.body)) });
     const result =
       method === 'getMe'
-        ? { username: 'SyntheticBot', is_bot: true }
+        ? { id: 12345, username: 'SyntheticBot', is_bot: true }
         : method === 'getWebhookInfo'
           ? { url: webhookUrl, pending_update_count: 0 }
           : method === 'getChatMenuButton'
@@ -148,6 +142,9 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
       calls.map(({ method }) => method),
       [
         'getMe',
+        'setMyName',
+        'setMyDescription',
+        'setMyShortDescription',
         'setMyCommands',
         'setChatMenuButton',
         'setWebhook',
@@ -161,10 +158,15 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
     assert.ok(!JSON.stringify(result).includes('synthetic-token'));
     // Same derived secret is required by the real controller, not just the setup script.
     await assert.rejects(
-      new TelegramController().webhook({ get: () => '', body: null } as unknown as Request),
+      new TelegramController({ accept: async () => {} } as unknown as TelegramService).webhook({
+        get: () => '',
+        body: null,
+      } as unknown as Request),
     );
     assert.deepEqual(
-      await new TelegramController().webhook({
+      await new TelegramController({
+        accept: async () => {},
+      } as unknown as TelegramService).webhook({
         get: () => secret,
         body: null,
       } as unknown as Request),

@@ -37,15 +37,18 @@ export function telegramMiniAppUrl() {
 }
 
 /** Never include Telegram API URLs in errors: their path contains the bot token. */
-export async function telegramApi<T>(method: string, body: Record<string, unknown>): Promise<T> {
+export async function telegramApi<T>(
+  method: string,
+  body: Record<string, unknown> | FormData,
+): Promise<T> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error('TELEGRAM_BOT_TOKEN is required');
   let response: Response;
   try {
     response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
+      body: body instanceof FormData ? body : JSON.stringify(body),
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
@@ -54,12 +57,4 @@ export async function telegramApi<T>(method: string, body: Record<string, unknow
   const payload = (await response.json().catch(() => null)) as { ok?: boolean; result?: T } | null;
   if (!response.ok || !payload?.ok) throw new TelegramApiError(method, 'request', response.status);
   return payload.result as T;
-}
-
-export function telegramWelcome(command: string) {
-  if (command === '/help')
-    return 'Открой Lingvoteka кнопкой ниже. В приложении доступны материалы, словарь, карточки и грамматика. При первом входе войди в свой аккаунт сайта и подтверди привязку Telegram. Пока материалы загружаются внутри приложения.';
-  if (command === '/start')
-    return 'Ciao! Это Lingvoteka — твои уроки, слова и повторение в одном месте. Открой приложение. Если ты уже занимаешься на сайте, войди в тот же аккаунт, чтобы сохранить материалы и прогресс.';
-  return 'Пока загружай материалы внутри Lingvoteka. Нажми кнопку ниже, чтобы открыть приложение.';
 }

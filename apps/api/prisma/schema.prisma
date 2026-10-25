@@ -8,22 +8,23 @@ datasource db {
 }
 
 model User {
-  id               String            @id
-  name             String
-  email            String            @unique
-  emailVerified    Boolean           @default(false)
-  image            String?
-  theme            String            @default("system")
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  sessions         Session[]
-  accounts         Account[]
-  materials        Material[]
-  vocabItems       VocabItem[]
-  grammarTopics    GrammarTopic[]
-  reviewStates     ReviewState[]
-  exerciseAttempts ExerciseAttempt[]
-  telegramIdentity TelegramIdentity?
+  id                  String               @id
+  name                String
+  email               String               @unique
+  emailVerified       Boolean              @default(false)
+  image               String?
+  theme               String               @default("system")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  sessions            Session[]
+  accounts            Account[]
+  materials           Material[]
+  vocabItems          VocabItem[]
+  grammarTopics       GrammarTopic[]
+  reviewStates        ReviewState[]
+  exerciseAttempts    ExerciseAttempt[]
+  telegramIdentity    TelegramIdentity?
+  telegramSubmissions TelegramSubmission[]
 
   @@map("user")
 }
@@ -83,21 +84,22 @@ model Verification {
 }
 
 model Material {
-  id            String            @id @default(cuid())
-  ownerId       String
-  owner         User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  title         String
-  lessonDate    DateTime?
-  deadline      DateTime?
-  noteText      String?
-  status        String            @default("DRAFT")
-  analysisDraft Json?
-  analysisError String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  files         MaterialFile[]
-  vocabulary    MaterialVocab[]
-  grammar       MaterialGrammar[]
+  id                 String              @id @default(cuid())
+  ownerId            String
+  owner              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title              String
+  lessonDate         DateTime?
+  deadline           DateTime?
+  noteText           String?
+  status             String              @default("DRAFT")
+  analysisDraft      Json?
+  analysisError      String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  files              MaterialFile[]
+  vocabulary         MaterialVocab[]
+  grammar            MaterialGrammar[]
+  telegramSubmission TelegramSubmission?
 
   @@index([ownerId, createdAt])
 }
@@ -236,4 +238,50 @@ model ExerciseAttempt {
   createdAt   DateTime        @default(now())
 
   @@index([userId, createdAt])
+}
+
+model TelegramSubmission {
+  id                  String           @id @default(cuid())
+  batchKey            String           @unique
+  ownerId             String
+  owner               User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  telegramId          String
+  chatId              String
+  isAlbum             Boolean          @default(false)
+  status              String           @default("PENDING")
+  lastReceivedAt      DateTime         @default(now())
+  claimToken          String?
+  leaseUntil          DateTime?
+  materialId          String?          @unique
+  material            Material?        @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  replyMessageId      Int?
+  notifiedStatus      String?
+  notificationRetryAt DateTime?
+  errorText           String?
+  createdAt           DateTime         @default(now())
+  updates             TelegramUpdate[]
+
+  @@index([status, lastReceivedAt])
+}
+
+model TelegramUpdate {
+  updateId     BigInt              @id
+  chatId       String
+  telegramId   String
+  messageId    String
+  kind         String
+  payload      Json?
+  submissionId String?
+  submission   TelegramSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime            @default(now())
+  handledAt    DateTime?
+
+  @@unique([chatId, messageId])
+  @@index([handledAt, createdAt])
+}
+
+model TelegramBotProfile {
+  botId      String   @id
+  avatarHash String
+  updatedAt  DateTime @updatedAt
 }
