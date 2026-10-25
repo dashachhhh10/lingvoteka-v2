@@ -45,7 +45,11 @@ export async function configureTelegramBot(apply: boolean) {
   );
   const menu = await telegramApi<{ type: string }>('getChatMenuButton', {});
   if (info.url !== webhook) throw new Error('Telegram webhook verification failed');
-  if (menu.type !== 'commands') throw new Error('Telegram menu verification failed');
+  // Telegram's default menu also opens commands; it can canonicalize the explicit setting.
+  if (!['commands', 'default'].includes(menu.type)) {
+    console.warn(`Telegram menu type ${menu.type === 'web_app' ? 'web_app' : 'unknown'}`);
+    throw new Error('Telegram menu verification failed');
+  }
   return {
     bot: `@${bot.username}`,
     botId: bot.id,

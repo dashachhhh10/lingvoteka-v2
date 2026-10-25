@@ -3,7 +3,7 @@
 - Статус: active
 - Агент: Codex
 - Задача/сессия: 01a0fb6a-6124-77c1-9219-42199dcb9516-bot-entry-practice-plan-20261025
-- Обновлено: 2026-10-25T14:00:48+08:00
+- Обновлено: 2026-10-25T14:04:06+08:00
 - Рабочая папка: /Users/dashachikunova/Lingvoteka
 - Ветка: dev
 - Планируемые файлы: apps/api/src/telegram-message.ts, telegram-intake.ts, telegram-setup.ts; apps/api/test/telegram-bot.test.ts, telegram-intake.smoke.ts; README.md (Telegram-секция), docs/roadmap.md, docs/project-context.md, эта запись.
@@ -23,6 +23,8 @@
 ## Проверки
 
 Прошли pnpm typecheck, pnpm build, pnpm format:check, git diff --check; Telegram unit — 11 тестов; локальный test:telegram-intake — PASS (временная схема и файлы удалены, Telegram/Gemini подменены). Проверены /phrase и /app как команды без AI-импорта, новый phrase callback, явные переходы приложения, commands-меню вместо web_app и нейтральное имя. Реальные учебные данные не изменялись.
+
+В 60a7c1e три деплоя успешны, публичный профиль показывает Lingvoteka и новый призыв прислать фразу. Однако startup-проверка меню выдала Telegram menu verification failed: строгая проверка принимала только commands. Документация Telegram допускает default (он тоже показывает команды); проверка исправлена с сохранением отказа на web_app и безопасным логом типа. Следующий деплой должен подтвердить фактический тип.
 
 ## Следующие шаги / препятствия
 

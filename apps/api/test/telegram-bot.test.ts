@@ -250,6 +250,8 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
       } as unknown as Request),
       { ok: true },
     );
+    menuType = 'default';
+    assert.equal((await configureTelegramBot(true)).menu, 'default');
     menuType = 'web_app';
     await assert.rejects(configureTelegramBot(true), {
       message: 'Telegram menu verification failed',
