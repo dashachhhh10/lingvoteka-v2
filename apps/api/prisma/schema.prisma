@@ -23,6 +23,7 @@ model User {
   grammarTopics    GrammarTopic[]
   reviewStates     ReviewState[]
   exerciseAttempts ExerciseAttempt[]
+  telegramIdentity TelegramIdentity?
 
   @@map("user")
 }
@@ -40,6 +41,13 @@ model Session {
 
   @@index([userId])
   @@map("session")
+}
+
+model TelegramIdentity {
+  telegramId String   @id
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
 }
 
 model Account {

@@ -30,6 +30,7 @@ import { GrammarDetailPage, GrammarPage } from './Grammar';
 import { LandingPage } from './Landing';
 import { ActionLink } from './components/ui/button';
 import FloatingMenu from './components/ui/liquid-morph-floating-menu';
+import { TelegramShell } from './Telegram';
 
 function translateAuthError(code?: string, message?: string): string {
   if (code === 'INVALID_EMAIL_OR_PASSWORD') return 'Неверная почта или пароль';
@@ -788,29 +789,31 @@ function ProfilePage() {
 export function App() {
   return (
     <ThemeProvider>
-      <Routes>
-        <Route index element={<HomeEntry />} />
-        <Route path="welcome" element={<LandingPage />} />
-        <Route element={<GuestOnly />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-        </Route>
-        <Route element={<RequireSession />}>
-          <Route path="review" element={<ReviewPage />} />
-          <Route element={<AppShell />}>
-            <Route path="materials" element={<MaterialsPage />} />
-            <Route path="materials/new" element={<NewMaterialPage />} />
-            <Route path="materials/:id" element={<MaterialDetailPage />} />
-            <Route path="vocabulary" element={<VocabularyPage />} />
-            <Route path="grammar" element={<GrammarPage />} />
-            <Route path="grammar/:id" element={<GrammarDetailPage />} />
-            <Route path="profile" element={<ProfilePage />} />
+      <TelegramShell>
+        <Routes>
+          <Route index element={<HomeEntry />} />
+          <Route path="welcome" element={<LandingPage />} />
+          <Route element={<GuestOnly />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
           </Route>
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route element={<RequireSession />}>
+            <Route path="review" element={<ReviewPage />} />
+            <Route element={<AppShell />}>
+              <Route path="materials" element={<MaterialsPage />} />
+              <Route path="materials/new" element={<NewMaterialPage />} />
+              <Route path="materials/:id" element={<MaterialDetailPage />} />
+              <Route path="vocabulary" element={<VocabularyPage />} />
+              <Route path="grammar" element={<GrammarPage />} />
+              <Route path="grammar/:id" element={<GrammarDetailPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+            </Route>
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </TelegramShell>
     </ThemeProvider>
   );
 }

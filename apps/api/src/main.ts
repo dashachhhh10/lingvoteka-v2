@@ -10,6 +10,7 @@ import { AppModule } from './app.module.js';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
 import { validateFileStorage } from './file-storage.js';
+import { initializeTelegramBot } from './telegram-setup.js';
 import {
   emailDeliveryConfigured,
   initializeEmailDelivery,
@@ -76,6 +77,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
   await app.listen(Number(process.env.PORT ?? 3001));
   console.info(`Lingvoteka API listening on port ${process.env.PORT ?? 3001}`);
+  void initializeTelegramBot();
 }
 
 void bootstrap().catch(async (error: unknown) => {

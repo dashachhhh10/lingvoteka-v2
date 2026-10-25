@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { authClient } from './auth-client';
+import { getTelegramWebApp } from './telegram-webapp';
 
 export type Theme = 'light' | 'dark';
 
@@ -35,6 +36,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const { data: session } = authClient.useSession();
 
   useEffect(() => {
+    const followTelegram = () => {
+      const telegram = getTelegramWebApp();
+      if (!telegram) return;
+      applyTheme(telegram.colorScheme);
+      setLocalTheme(telegram.colorScheme);
+    };
+    followTelegram();
+    window.addEventListener('lingvoteka:telegram-theme', followTelegram);
+    return () => window.removeEventListener('lingvoteka:telegram-theme', followTelegram);
+  }, []);
+
+  useEffect(() => {
     if (!session?.user) return;
     const controller = new AbortController();
     void fetch('/api/me', { credentials: 'include', signal: controller.signal })
@@ -43,7 +56,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         return response.json() as Promise<{ user: { theme: string } }>;
       })
       .then(({ user }) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || getTelegramWebApp()) return;
         if (user.theme === 'light' || user.theme === 'dark') {
           applyTheme(user.theme);
           setLocalTheme(user.theme);

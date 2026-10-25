@@ -1,6 +1,23 @@
 @import 'tailwindcss';
 @import './components/ui/controls.css';
 
+/* Host insets are scoped to Telegram; regular browser layout keeps its own spacing. */
+:root[data-telegram] #root {
+  min-height: var(--tg-viewport-stable-height, 100dvh);
+  padding-top: max(env(safe-area-inset-top, 0px), var(--telegram-safe-top, 0px));
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--telegram-safe-bottom, 0px));
+  padding-left: max(env(safe-area-inset-left, 0px), var(--telegram-safe-left, 0px));
+  padding-right: max(env(safe-area-inset-right, 0px), var(--telegram-safe-right, 0px));
+}
+
+:root[data-telegram] .floating-navigation {
+  bottom: calc(20px + max(env(safe-area-inset-bottom, 0px), var(--telegram-safe-bottom, 0px)));
+}
+
+:root[data-telegram] .app-header {
+  top: max(env(safe-area-inset-top, 0px), var(--telegram-safe-top, 0px));
+}
+
 @theme inline {
   --font-sans: var(--ui-font);
   --font-display: var(--display-font);

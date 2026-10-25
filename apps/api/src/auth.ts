@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { prisma } from './database.js';
 import { sendEmail } from './email.js';
+import { telegramAuth } from './telegram-auth.js';
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3001',
@@ -11,6 +12,7 @@ export const auth = betterAuth({
     ...(process.env.NODE_ENV === 'production' ? [] : ['http://127.0.0.1:5173']),
   ],
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
+  plugins: [telegramAuth()],
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,
