@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import type { Request } from 'express';
 import { configureTelegramBot, initializeTelegramBot } from '../src/telegram-setup.js';
 import type { TelegramService } from '../src/telegram.service.js';
-import { botCopy, parseTelegramMessage } from '../src/telegram-message.js';
+import { BOT_COMMANDS, botCopy, parseTelegramMessage } from '../src/telegram-message.js';
 import { telegramButtons, telegramHomeButtons } from '../src/telegram-intake.js';
 import { TelegramController } from '../src/telegram.controller.js';
 import { telegramMiniAppUrl, telegramWebhookSecret } from '../src/telegram-bot.js';
@@ -79,7 +79,9 @@ test('start copy and launch buttons are readable and do not expose credentials',
     });
     assert.equal(parsed?.kind, 'start');
     assert.match(botCopy('start'), /Ciao/);
-    for (const command of ['phrase', 'app']) {
+    assert.doesNotMatch(botCopy('start'), /Меню/);
+    for (const { command } of BOT_COMMANDS) {
+      if (command !== 'start') assert.match(botCopy('start'), new RegExp(`^/${command} — `, 'm'));
       const action = parseTelegramMessage({
         update_id: 2,
         message: {
@@ -181,7 +183,9 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
           ? { url: webhookUrl, pending_update_count: 0 }
           : method === 'getChatMenuButton'
             ? { type: menuType }
-            : true;
+            : method === 'getMyCommands'
+              ? (calls.find((call) => call.method === 'setMyCommands')?.body.commands ?? [])
+              : true;
     return new Response(JSON.stringify({ ok: true, result }));
   };
   try {
@@ -216,6 +220,7 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
         'setWebhook',
         'getWebhookInfo',
         'getChatMenuButton',
+        'getMyCommands',
       ],
     );
     const registered = calls.find(({ method }) => method === 'setWebhook')!.body;

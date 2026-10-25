@@ -42,6 +42,17 @@ const mimeByExtension: Record<string, string> = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 };
+/** One list for the `/` menu (setMyCommands), command parsing and the /start text. */
+export const BOT_COMMANDS = [
+  { command: 'phrase', description: 'Разобрать фразу' },
+  { command: 'add', description: 'Прислать фото или файл' },
+  { command: 'cards', description: 'Повторить слова' },
+  { command: 'materials', description: 'Мои материалы' },
+  { command: 'app', description: 'Открыть приложение ↗' },
+  { command: 'help', description: 'Как это работает' },
+  { command: 'start', description: 'Главное меню' },
+] as const;
+const commandNames = new Set<string>(BOT_COMMANDS.map(({ command }) => command));
 export type TelegramFile = { fileId: string; name: string; mimeType: string; byteSize?: number };
 export type TelegramPayload = { text: string; file?: TelegramFile };
 export function parseTelegramMessage(raw: unknown) {
@@ -74,12 +85,10 @@ export function parseTelegramMessage(raw: unknown) {
   };
   const text = (message.text ?? message.caption ?? '').trim();
   if (message.text?.startsWith('/')) {
-    const command = message.text.split(/\s/, 1)[0]!.split('@', 1)[0]!;
+    const command = message.text.split(/\s/, 1)[0]!.split('@', 1)[0]!.slice(1);
     return {
       ...base,
-      kind: ['/start', '/phrase', '/add', '/help', '/cards', '/materials', '/app'].includes(command)
-        ? command.slice(1)
-        : 'help',
+      kind: commandNames.has(command) ? command : 'help',
       payload: null,
       albumId: undefined,
     };
@@ -117,7 +126,12 @@ export const BOT_SHORT_DESCRIPTION =
 export function botCopy(kind: string) {
   switch (kind) {
     case 'start':
-      return '🍋 <b>Ciao! Просто напиши мне фразу на итальянском.</b>\nНапример: <code>Il limone è giallo.</code>\n\nЯ найду слова с переводом и грамматические темы. Ты проверишь результат в приложении, сохранишь нужное и получишь карточки для повторения. Можно прислать и фото или файл.\n\n<b>В чате:</b> присылай текст и файлы, получай уведомления о разборе.\n<b>В приложении ↗:</b> проверяй результат, повторяй карточки и занимайся грамматикой. Кнопки со стрелкой откроют его внутри Telegram.\n\nКнопка «Меню» рядом со строкой ввода открывает команды; их можно выбрать без набора вручную.';
+      return (
+        '🍋 <b>Ciao! Просто напиши мне фразу на итальянском.</b>\nНапример: <code>Il limone è giallo.</code>\n\nЯ найду слова с переводом и грамматические темы. Ты проверишь результат в приложении, сохранишь нужное и получишь карточки для повторения. Можно прислать и фото или файл.\n\n<b>Команды:</b>\n' +
+        BOT_COMMANDS.filter(({ command }) => command !== 'start')
+          .map(({ command, description }) => `/${command} — ${description.toLowerCase()}`)
+          .join('\n')
+      );
     case 'phrase':
       return '<b>Напиши фразу прямо в этот чат.</b>\nНапример: <code>Il limone è giallo.</code>\n\nОтправь её обычным сообщением — команда перед текстом не нужна. Можно написать несколько предложений сразу.\n\nЯ найду слова с переводом и грамматические темы, затем дам кнопку «Проверить слова и темы ↗». В приложении ты выберешь, что сохранить. После сохранения откроются карточки.';
     case 'add':

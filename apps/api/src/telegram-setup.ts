@@ -1,5 +1,5 @@
 import { synchronizeTelegramAvatar } from './telegram-brand.js';
-import { BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION } from './telegram-message.js';
+import { BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION } from './telegram-message.js';
 import {
   TelegramApiError,
   telegramApi,
@@ -20,17 +20,8 @@ export async function configureTelegramBot(apply: boolean) {
   await telegramApi('setMyName', { name: 'Lingvoteka' });
   await telegramApi('setMyDescription', { description: BOT_DESCRIPTION });
   await telegramApi('setMyShortDescription', { short_description: BOT_SHORT_DESCRIPTION });
-  await telegramApi('setMyCommands', {
-    commands: [
-      { command: 'start', description: 'Главное меню' },
-      { command: 'phrase', description: 'Написать фразу и получить разбор' },
-      { command: 'add', description: 'Прислать фото или файл на разбор' },
-      { command: 'help', description: 'Как это работает' },
-      { command: 'cards', description: 'Повторить слова' },
-      { command: 'materials', description: 'Открыть мои материалы' },
-      { command: 'app', description: 'Открыть приложение Lingvoteka ↗' },
-    ],
-  });
+  const commands = BOT_COMMANDS;
+  await telegramApi('setMyCommands', { commands });
   await telegramApi('setChatMenuButton', {
     menu_button: { type: 'commands' },
   });
@@ -44,7 +35,12 @@ export async function configureTelegramBot(apply: boolean) {
     {},
   );
   const menu = await telegramApi<{ type: string }>('getChatMenuButton', {});
+  const savedCommands = await telegramApi<{ command: string }[]>('getMyCommands', {});
   if (info.url !== webhook) throw new Error('Telegram webhook verification failed');
+  if (
+    savedCommands.map((item) => item.command).join() !== commands.map((item) => item.command).join()
+  )
+    throw new Error('Telegram commands verification failed');
   // Telegram's default menu also opens commands; it can canonicalize the explicit setting.
   if (!['commands', 'default'].includes(menu.type)) {
     console.warn(`Telegram menu type ${menu.type === 'web_app' ? 'web_app' : 'unknown'}`);
@@ -58,6 +54,7 @@ export async function configureTelegramBot(apply: boolean) {
     mode: 'apply',
     pendingUpdates: info.pending_update_count,
     menu: menu.type,
+    commands: savedCommands.map((item) => `/${item.command}`),
   };
 }
 
@@ -74,6 +71,7 @@ export async function initializeTelegramBot() {
       'Invalid Telegram bot identity',
       'Telegram webhook verification failed',
       'Telegram menu verification failed',
+      'Telegram commands verification failed',
       'Invalid TELEGRAM_WEBHOOK_SECRET format',
       'Telegram Mini App requires a clean HTTPS URL',
       'TELEGRAM_MINI_APP_URL is required',
