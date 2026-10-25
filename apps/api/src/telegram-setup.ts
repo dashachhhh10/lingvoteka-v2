@@ -1,4 +1,9 @@
-import { telegramApi, telegramMiniAppUrl, telegramWebhookSecret } from './telegram-bot.js';
+import {
+  TelegramApiError,
+  telegramApi,
+  telegramMiniAppUrl,
+  telegramWebhookSecret,
+} from './telegram-bot.js';
 
 export async function configureTelegramBot(apply: boolean) {
   const url = telegramMiniAppUrl();
@@ -9,6 +14,7 @@ export async function configureTelegramBot(apply: boolean) {
   if (!bot.is_bot || !/^[A-Za-z0-9_]{5,32}$/.test(bot.username))
     throw new Error('Invalid Telegram bot identity');
   if (!apply) return { bot: `@${bot.username}`, miniApp: url, webhook, mode: 'check' };
+  console.info(`Telegram bot verified @${bot.username}`);
   await telegramApi('setMyCommands', {
     commands: [
       { command: 'start', description: 'Открыть Lingvoteka' },
@@ -47,8 +53,25 @@ export async function initializeTelegramBot() {
   if (process.env.NODE_ENV !== 'production' || !process.env.TELEGRAM_BOT_TOKEN) return;
   try {
     console.info(`Telegram setup ready ${JSON.stringify(await configureTelegramBot(true))}`);
-  } catch {
+  } catch (error) {
     // Fetch errors may contain a token-bearing URL; never log them.
-    console.warn('Telegram setup failed; check bot token, HTTPS origin and Telegram availability');
+    const knownSettingsErrors = [
+      'Invalid Telegram bot identity',
+      'Telegram settings verification failed',
+      'Invalid TELEGRAM_WEBHOOK_SECRET format',
+      'Telegram Mini App requires a clean HTTPS URL',
+      'TELEGRAM_MINI_APP_URL is required',
+    ];
+    const detail =
+      error instanceof TelegramApiError
+        ? { method: error.method, kind: error.kind, status: error.status ?? null }
+        : {
+            kind: 'invalid-settings',
+            reason:
+              error instanceof Error && knownSettingsErrors.includes(error.message)
+                ? error.message
+                : 'Unknown settings error',
+          };
+    console.warn(`Telegram setup failed ${JSON.stringify(detail)}`);
   }
 }

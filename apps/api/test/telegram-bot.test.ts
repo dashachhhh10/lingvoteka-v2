@@ -188,6 +188,15 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
     }
     assert.equal(warnings.length, 1);
     assert.ok(!warnings[0]!.includes('token-bearing-private-request-url'));
+    assert.ok(warnings[0]!.includes('\"method\":\"getMe\"'));
+    assert.ok(warnings[0]!.includes('\"kind\":\"network\"'));
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify({ ok: false, description: 'not logged' }), { status: 401 });
+    await assert.rejects(configureTelegramBot(true), {
+      method: 'getMe',
+      kind: 'request',
+      status: 401,
+    });
   } finally {
     globalThis.fetch = originalFetch;
     for (const [key, value] of Object.entries(previous)) {

@@ -1,5 +1,19 @@
 import { createHmac } from 'node:crypto';
 
+export class TelegramApiError extends Error {
+  constructor(
+    readonly method: string,
+    readonly kind: 'network' | 'request',
+    readonly status?: number,
+  ) {
+    super(
+      kind === 'network'
+        ? 'Telegram API is unavailable'
+        : `Telegram API request failed (${status})`,
+    );
+  }
+}
+
 /** Stable across replicas/restarts; purpose separation keeps the bot token private. */
 export function telegramWebhookSecret() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -35,11 +49,10 @@ export async function telegramApi<T>(method: string, body: Record<string, unknow
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
-    throw new Error('Telegram API is unavailable');
+    throw new TelegramApiError(method, 'network');
   }
   const payload = (await response.json().catch(() => null)) as { ok?: boolean; result?: T } | null;
-  if (!response.ok || !payload?.ok)
-    throw new Error(`Telegram API request failed (${response.status})`);
+  if (!response.ok || !payload?.ok) throw new TelegramApiError(method, 'request', response.status);
   return payload.result as T;
 }
 
