@@ -106,6 +106,8 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
   const originalFetch = globalThis.fetch;
   const calls: { method: string; body: Record<string, unknown> }[] = [];
   const url = 'https://lingvoteka.vercel.app';
+  let menuUrl = `${url}/`;
+  let webhookUrl = `${url}/api/telegram/webhook`;
   process.env.TELEGRAM_BOT_TOKEN = 'synthetic-token';
   delete process.env.TELEGRAM_WEBHOOK_SECRET;
   process.env.TELEGRAM_MINI_APP_URL = url;
@@ -116,9 +118,9 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
       method === 'getMe'
         ? { username: 'SyntheticBot', is_bot: true }
         : method === 'getWebhookInfo'
-          ? { url: `${url}/api/telegram/webhook`, pending_update_count: 0 }
+          ? { url: webhookUrl, pending_update_count: 0 }
           : method === 'getChatMenuButton'
-            ? { type: 'web_app', web_app: { url } }
+            ? { type: 'web_app', web_app: { url: menuUrl } }
             : true;
     return new Response(JSON.stringify({ ok: true, result }));
   };
@@ -168,6 +170,16 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
       } as unknown as Request),
       { ok: true },
     );
+    menuUrl = `${url}/wrong`;
+    await assert.rejects(configureTelegramBot(true), {
+      message: 'Telegram menu verification failed',
+    });
+    menuUrl = `${url}/`;
+    webhookUrl = `${url}/wrong`;
+    await assert.rejects(configureTelegramBot(true), {
+      message: 'Telegram webhook verification failed',
+    });
+    webhookUrl = `${url}/api/telegram/webhook`;
     process.env.TELEGRAM_WEBHOOK_SECRET = 'too-short';
     assert.throws(telegramWebhookSecret);
     delete process.env.TELEGRAM_WEBHOOK_SECRET;

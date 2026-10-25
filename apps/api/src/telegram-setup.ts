@@ -37,8 +37,16 @@ export async function configureTelegramBot(apply: boolean) {
     'getChatMenuButton',
     {},
   );
-  if (info.url !== webhook || menu.type !== 'web_app' || menu.web_app?.url !== url)
-    throw new Error('Telegram settings verification failed');
+  if (info.url !== webhook) throw new Error('Telegram webhook verification failed');
+  // Telegram may canonicalize an origin-only menu URL by adding its trailing slash.
+  let menuUrlMatches = false;
+  try {
+    menuUrlMatches = new URL(menu.web_app?.url ?? '').href === new URL(url).href;
+  } catch {
+    // An absent/malformed URL is a failed verification, never an error to serialize.
+  }
+  if (menu.type !== 'web_app' || !menuUrlMatches)
+    throw new Error('Telegram menu verification failed');
   return {
     bot: `@${bot.username}`,
     miniApp: url,
@@ -57,7 +65,8 @@ export async function initializeTelegramBot() {
     // Fetch errors may contain a token-bearing URL; never log them.
     const knownSettingsErrors = [
       'Invalid Telegram bot identity',
-      'Telegram settings verification failed',
+      'Telegram webhook verification failed',
+      'Telegram menu verification failed',
       'Invalid TELEGRAM_WEBHOOK_SECRET format',
       'Telegram Mini App requires a clean HTTPS URL',
       'TELEGRAM_MINI_APP_URL is required',
