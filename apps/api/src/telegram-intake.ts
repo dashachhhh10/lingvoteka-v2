@@ -84,7 +84,7 @@ export function telegramButtons(path = '', label = 'Открыть прилож�
     inline_keyboard: [
       [
         {
-          text: label,
+          text: `${label} ↗`,
           web_app: { url: url + path },
         },
       ],
@@ -97,11 +97,12 @@ export function telegramHomeButtons(linked: boolean) {
   const url = telegramMiniAppUrl();
   return {
     inline_keyboard: [
-      ...(!linked ? [[{ text: 'Связать аккаунт', web_app: { url } }]] : []),
-      [{ text: 'Добавить материал', callback_data: 'add' }],
+      [{ text: linked ? '📱 Открыть приложение ↗' : '📱 Связать аккаунт ↗', web_app: { url } }],
+      [{ text: 'Разобрать фразу', callback_data: 'phrase' }],
+      [{ text: 'Прислать фото или файл', callback_data: 'add' }],
       [
-        { text: 'Повторить слова', web_app: { url: `${url}/review` } },
-        { text: 'Мои материалы', web_app: { url: `${url}/materials` } },
+        { text: 'Карточки ↗', web_app: { url: `${url}/review` } },
+        { text: 'Мои материалы ↗', web_app: { url: `${url}/materials` } },
       ],
       [{ text: 'Как это работает', callback_data: 'help' }],
     ],
@@ -115,7 +116,7 @@ export async function replyToTelegramUpdate(updateId: bigint) {
     where: { telegramId: update.telegramId },
     select: { userId: true },
   });
-  const kind = update.kind === 'add' && !identity ? 'connect' : update.kind;
+  const kind = ['add', 'phrase'].includes(update.kind) && !identity ? 'connect' : update.kind;
   const path = kind === 'cards' ? '/review' : kind === 'materials' ? '/materials' : '';
   const label =
     kind === 'cards'
@@ -134,10 +135,9 @@ export async function replyToTelegramUpdate(updateId: bigint) {
           ? '\n\n<b>Первый раз?</b> Начни с кнопки «Связать аккаунт»: войди в приложение и подтверди привязку к Telegram.'
           : ''),
       parse_mode: 'HTML',
-      reply_markup:
-        kind === 'start' || kind === 'add' || kind === 'help'
-          ? telegramHomeButtons(!!identity)
-          : telegramButtons(path, label),
+      reply_markup: ['start', 'phrase', 'add', 'help'].includes(kind)
+        ? telegramHomeButtons(!!identity)
+        : telegramButtons(path, label),
     });
   } catch (error) {
     if (!(error instanceof TelegramApiError && error.status === 403)) throw error;

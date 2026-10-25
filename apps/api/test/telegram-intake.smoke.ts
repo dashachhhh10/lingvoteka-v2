@@ -143,19 +143,19 @@ try {
     },
   });
   const callbackService = new TelegramService({ enqueue } as never);
-  await callbackService.accept(navigation(100, 'add'));
-  await callbackService.accept(navigation(100, 'add'));
+  await callbackService.accept(navigation(100, 'phrase'));
+  await callbackService.accept(navigation(100, 'phrase'));
   await callbackService.accept(navigation(101, 'home'));
   await replyToTelegramUpdate(100n);
   await replyToTelegramUpdate(101n);
   const navigationReplies = calls.filter((call) => call.method === 'sendMessage');
-  assert.match(String(navigationReplies.at(-2)?.body.text), /Пришли материал/);
+  assert.match(String(navigationReplies.at(-2)?.body.text), /Напиши фразу прямо в этот чат/);
   assert.match(String(navigationReplies.at(-1)?.body.text), /Ciao/);
   assert.equal(await prisma.telegramUpdate.count({ where: { updateId: { in: [100n, 101n] } } }), 2);
   assert.equal(await prisma.telegramSubmission.count(), 0, 'Menu clicks must not import material');
   assert.equal(await prisma.material.count(), 0);
   assert.ok(calls.some((call) => call.method === 'answerCallbackQuery'));
-  await callbackService.accept(navigation(102, 'add', 456));
+  await callbackService.accept(navigation(102, 'phrase', 456));
   await replyToTelegramUpdate(102n);
   assert.match(
     String(calls.filter((call) => call.method === 'sendMessage').at(-1)?.body.text),
@@ -185,7 +185,7 @@ try {
     inline_keyboard: [
       [
         {
-          text: 'Проверить слова и темы',
+          text: 'Проверить слова и темы ↗',
           web_app: { url: `https://lingvoteka.vercel.app/materials/${textMaterial.id}` },
         },
       ],

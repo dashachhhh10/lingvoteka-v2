@@ -17,20 +17,22 @@ export async function configureTelegramBot(apply: boolean) {
     throw new Error('Invalid Telegram bot identity');
   if (!apply) return { bot: `@${bot.username}`, miniApp: url, webhook, mode: 'check' };
   console.info(`Telegram bot verified @${bot.username}`);
-  await telegramApi('setMyName', { name: 'Lingvoteka · итальянский' });
+  await telegramApi('setMyName', { name: 'Lingvoteka' });
   await telegramApi('setMyDescription', { description: BOT_DESCRIPTION });
   await telegramApi('setMyShortDescription', { short_description: BOT_SHORT_DESCRIPTION });
   await telegramApi('setMyCommands', {
     commands: [
       { command: 'start', description: 'Главное меню' },
-      { command: 'add', description: 'Что прислать и как получить карточки' },
+      { command: 'phrase', description: 'Написать фразу и получить разбор' },
+      { command: 'add', description: 'Прислать фото или файл на разбор' },
       { command: 'help', description: 'Как это работает' },
       { command: 'cards', description: 'Повторить слова' },
       { command: 'materials', description: 'Открыть мои материалы' },
+      { command: 'app', description: 'Открыть приложение Lingvoteka ↗' },
     ],
   });
   await telegramApi('setChatMenuButton', {
-    menu_button: { type: 'web_app', text: 'Lingvoteka', web_app: { url } },
+    menu_button: { type: 'commands' },
   });
   await telegramApi('setWebhook', {
     url: webhook,
@@ -41,20 +43,9 @@ export async function configureTelegramBot(apply: boolean) {
     'getWebhookInfo',
     {},
   );
-  const menu = await telegramApi<{ type: string; web_app?: { url: string } }>(
-    'getChatMenuButton',
-    {},
-  );
+  const menu = await telegramApi<{ type: string }>('getChatMenuButton', {});
   if (info.url !== webhook) throw new Error('Telegram webhook verification failed');
-  // Telegram may canonicalize an origin-only menu URL by adding its trailing slash.
-  let menuUrlMatches = false;
-  try {
-    menuUrlMatches = new URL(menu.web_app?.url ?? '').href === new URL(url).href;
-  } catch {
-    // An absent/malformed URL is a failed verification, never an error to serialize.
-  }
-  if (menu.type !== 'web_app' || !menuUrlMatches)
-    throw new Error('Telegram menu verification failed');
+  if (menu.type !== 'commands') throw new Error('Telegram menu verification failed');
   return {
     bot: `@${bot.username}`,
     botId: bot.id,
@@ -62,6 +53,7 @@ export async function configureTelegramBot(apply: boolean) {
     webhook,
     mode: 'apply',
     pendingUpdates: info.pending_update_count,
+    menu: menu.type,
   };
 }
 

@@ -79,6 +79,19 @@ test('start copy and launch buttons are readable and do not expose credentials',
     });
     assert.equal(parsed?.kind, 'start');
     assert.match(botCopy('start'), /Ciao/);
+    for (const command of ['phrase', 'app']) {
+      const action = parseTelegramMessage({
+        update_id: 2,
+        message: {
+          message_id: 2,
+          from: { id: 123, is_bot: false },
+          chat: { id: 123, type: 'private' },
+          text: `/${command}`,
+        },
+      });
+      assert.equal(action?.kind, command);
+      assert.equal(action?.payload, null, 'A navigation command must not be analyzed as text');
+    }
     assert.equal(
       telegramButtons().inline_keyboard[0]?.[0]?.web_app?.url,
       'https://lingvoteka.vercel.app',
@@ -123,11 +136,19 @@ test('home menu separates in-chat guidance from launching the application', () =
   process.env.TELEGRAM_MINI_APP_URL = 'https://lingvoteka.vercel.app';
   try {
     const linked = telegramHomeButtons(true).inline_keyboard.flat();
-    const add = linked.find((button) => button.text === 'Добавить материал');
-    assert.deepEqual(add, { text: 'Добавить материал', callback_data: 'add' });
+    const phrase = linked.find((button) => button.text === 'Разобрать фразу');
+    assert.deepEqual(phrase, { text: 'Разобрать фразу', callback_data: 'phrase' });
+    const add = linked.find((button) => button.text === 'Прислать фото или файл');
+    assert.deepEqual(add, { text: 'Прислать фото или файл', callback_data: 'add' });
+    assert.deepEqual(linked[0], {
+      text: '📱 Открыть приложение ↗',
+      web_app: { url: 'https://lingvoteka.vercel.app' },
+    });
+    for (const button of linked.filter((button) => button.web_app))
+      assert.ok(button.text.endsWith('↗'), 'Every application launch must be explicit');
     assert.ok(linked.some((button) => button.web_app?.url.endsWith('/review')));
     assert.ok(linked.some((button) => button.web_app?.url.endsWith('/materials')));
-    assert.equal(telegramHomeButtons(false).inline_keyboard[0]?.[0]?.text, 'Связать аккаунт');
+    assert.equal(telegramHomeButtons(false).inline_keyboard[0]?.[0]?.text, '📱 Связать аккаунт ↗');
   } finally {
     if (original === undefined) delete process.env.TELEGRAM_MINI_APP_URL;
     else process.env.TELEGRAM_MINI_APP_URL = original;
@@ -145,7 +166,7 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
   const originalFetch = globalThis.fetch;
   const calls: { method: string; body: Record<string, unknown> }[] = [];
   const url = 'https://lingvoteka.vercel.app';
-  let menuUrl = `${url}/`;
+  let menuType = 'commands';
   let webhookUrl = `${url}/api/telegram/webhook`;
   process.env.TELEGRAM_BOT_TOKEN = 'synthetic-token';
   delete process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -159,7 +180,7 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
         : method === 'getWebhookInfo'
           ? { url: webhookUrl, pending_update_count: 0 }
           : method === 'getChatMenuButton'
-            ? { type: 'web_app', web_app: { url: menuUrl } }
+            ? { type: menuType }
             : true;
     return new Response(JSON.stringify({ ok: true, result }));
   };
@@ -200,6 +221,17 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
     const registered = calls.find(({ method }) => method === 'setWebhook')!.body;
     assert.equal(registered.secret_token, secret);
     assert.deepEqual(registered.allowed_updates, ['message', 'callback_query']);
+    assert.deepEqual(calls.find(({ method }) => method === 'setMyName')?.body, {
+      name: 'Lingvoteka',
+    });
+    assert.deepEqual(calls.find(({ method }) => method === 'setChatMenuButton')?.body, {
+      menu_button: { type: 'commands' },
+    });
+    const commands = calls.find(({ method }) => method === 'setMyCommands')!.body.commands as {
+      command: string;
+    }[];
+    assert.ok(commands.some((item) => item.command === 'phrase'));
+    assert.ok(commands.some((item) => item.command === 'app'));
     assert.ok(!JSON.stringify(result).includes(secret!));
     assert.ok(!JSON.stringify(result).includes('synthetic-token'));
     // Same derived secret is required by the real controller, not just the setup script.
@@ -218,11 +250,11 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
       } as unknown as Request),
       { ok: true },
     );
-    menuUrl = `${url}/wrong`;
+    menuType = 'web_app';
     await assert.rejects(configureTelegramBot(true), {
       message: 'Telegram menu verification failed',
     });
-    menuUrl = `${url}/`;
+    menuType = 'commands';
     webhookUrl = `${url}/wrong`;
     await assert.rejects(configureTelegramBot(true), {
       message: 'Telegram webhook verification failed',
