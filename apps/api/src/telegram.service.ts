@@ -2,6 +2,7 @@ import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@ne
 import type { JobWithMetadata } from 'pg-boss';
 import { prisma } from './database.js';
 import { createBoss, MaterialQueueService } from './material-queue.js';
+import { telegramApi } from './telegram-bot.js';
 import {
   importTelegramSubmission,
   notifyTelegramSubmission,
@@ -19,8 +20,14 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   private reconciling = false;
   private started = false;
   constructor(@Inject(MaterialQueueService) private readonly materials: MaterialQueueService) {}
-  accept(raw: unknown) {
-    return receiveTelegramUpdate(raw);
+  async accept(raw: unknown) {
+    const callbackQueryId = await receiveTelegramUpdate(raw);
+    if (callbackQueryId) {
+      // Clear Telegram's spinner promptly; the durable queue sends the navigation reply.
+      void telegramApi('answerCallbackQuery', { callback_query_id: callbackQueryId }).catch(() =>
+        console.warn('Telegram navigation acknowledgement unavailable'),
+      );
+    }
   }
   async onModuleInit() {
     if (!process.env.TELEGRAM_BOT_TOKEN) return;

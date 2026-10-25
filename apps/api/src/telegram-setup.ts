@@ -22,8 +22,9 @@ export async function configureTelegramBot(apply: boolean) {
   await telegramApi('setMyShortDescription', { short_description: BOT_SHORT_DESCRIPTION });
   await telegramApi('setMyCommands', {
     commands: [
-      { command: 'start', description: 'Открыть Lingvoteka' },
-      { command: 'help', description: 'Как прислать урок и начать заниматься' },
+      { command: 'start', description: 'Главное меню' },
+      { command: 'add', description: 'Что прислать и как получить карточки' },
+      { command: 'help', description: 'Как это работает' },
       { command: 'cards', description: 'Повторить слова' },
       { command: 'materials', description: 'Открыть мои материалы' },
     ],
@@ -34,7 +35,7 @@ export async function configureTelegramBot(apply: boolean) {
   await telegramApi('setWebhook', {
     url: webhook,
     secret_token: secret,
-    allowed_updates: ['message'],
+    allowed_updates: ['message', 'callback_query'],
   });
   const info = await telegramApi<{ url: string; pending_update_count: number }>(
     'getWebhookInfo',

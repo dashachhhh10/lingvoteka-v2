@@ -75,22 +75,35 @@ export async function receiveTelegramUpdate(raw: unknown) {
     if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'))
       throw error;
   }
+  return message.callbackQueryId;
 }
 
-export function telegramButtons(path = '') {
+export function telegramButtons(path = '', label = 'Открыть приложение') {
   const url = telegramMiniAppUrl();
   return {
     inline_keyboard: [
       [
         {
-          text: path.startsWith('/materials/') ? 'Открыть урок' : 'Открыть Lingvoteka',
+          text: label,
           web_app: { url: url + path },
         },
       ],
+      [{ text: 'Главное меню', callback_data: 'home' }],
+    ],
+  };
+}
+
+export function telegramHomeButtons(linked: boolean) {
+  const url = telegramMiniAppUrl();
+  return {
+    inline_keyboard: [
+      ...(!linked ? [[{ text: 'Связать аккаунт', web_app: { url } }]] : []),
+      [{ text: 'Добавить материал', callback_data: 'add' }],
       [
-        { text: 'Карточки', web_app: { url: `${url}/review` } },
+        { text: 'Повторить слова', web_app: { url: `${url}/review` } },
         { text: 'Мои материалы', web_app: { url: `${url}/materials` } },
       ],
+      [{ text: 'Как это работает', callback_data: 'help' }],
     ],
   };
 }
@@ -98,14 +111,33 @@ export function telegramButtons(path = '') {
 export async function replyToTelegramUpdate(updateId: bigint) {
   const update = await prisma.telegramUpdate.findUnique({ where: { updateId } });
   if (!update || update.handledAt || update.kind === 'material') return;
-  const path =
-    update.kind === 'cards' ? '/review' : update.kind === 'materials' ? '/materials' : '';
+  const identity = await prisma.telegramIdentity.findUnique({
+    where: { telegramId: update.telegramId },
+    select: { userId: true },
+  });
+  const kind = update.kind === 'add' && !identity ? 'connect' : update.kind;
+  const path = kind === 'cards' ? '/review' : kind === 'materials' ? '/materials' : '';
+  const label =
+    kind === 'cards'
+      ? 'Повторить слова'
+      : kind === 'materials'
+        ? 'Мои материалы'
+        : kind === 'connect'
+          ? 'Связать аккаунт'
+          : 'Открыть приложение';
   try {
     await telegramApi('sendMessage', {
       chat_id: update.chatId,
-      text: botCopy(update.kind),
+      text:
+        botCopy(kind) +
+        (kind === 'start' && !identity
+          ? '\n\n<b>Первый раз?</b> Начни с кнопки «Связать аккаунт»: войди в приложение и подтверди привязку к Telegram.'
+          : ''),
       parse_mode: 'HTML',
-      reply_markup: telegramButtons(path),
+      reply_markup:
+        kind === 'start' || kind === 'add' || kind === 'help'
+          ? telegramHomeButtons(!!identity)
+          : telegramButtons(path, label),
     });
   } catch (error) {
     if (!(error instanceof TelegramApiError && error.status === 403)) throw error;
@@ -177,7 +209,7 @@ export async function importTelegramSubmission(
       attachments.reduce((sum, file) => sum + (file.byteSize ?? 0), 0) > 20 * 1024 * 1024
     )
       throw new BadRequestException(
-        'В одном уроке — до 5 файлов общим размером до 20 МБ. Раздели материал и отправь заново.',
+        'В одном материале — до 5 файлов общим размером до 20 МБ. Раздели материал и отправь заново.',
       );
     const files = [];
     for (const attachment of attachments) files.push(await downloadTelegramFile(attachment));
@@ -187,7 +219,7 @@ export async function importTelegramSubmission(
       .join('\n\n');
     const title = files.length
       ? undefined
-      : text.split('\n')[0]?.trim().slice(0, 100) || 'Урок из Telegram';
+      : text.split('\n')[0]?.trim().slice(0, 100) || 'Материал из Telegram';
     const input = await validateMaterialInput({ title, noteText: text }, files);
     const material = await withStoredMaterialFiles(submission.ownerId, files, (stored) =>
       prisma.$transaction(async (tx) => {
@@ -236,7 +268,7 @@ export async function importTelegramSubmission(
 export async function notifyTelegramSubmission(id: string) {
   const submission = await prisma.telegramSubmission.findUnique({
     where: { id },
-    include: { material: true },
+    include: { material: { include: { _count: { select: { files: true, vocabulary: true } } } } },
   });
   if (!submission || !['IMPORTED', 'REJECTED'].includes(submission.status)) return;
   const state = submission.status === 'REJECTED' ? 'REJECTED' : submission.material?.status;
@@ -246,22 +278,35 @@ export async function notifyTelegramSubmission(id: string) {
     where: { telegramId: submission.telegramId },
   });
   if (identity?.userId !== submission.ownerId) return;
+  const subject = submission.material?._count.files ? 'материала' : 'текста';
   const text =
     state === 'REVIEW'
-      ? '🍋 <b>Твой урок разобран.</b>\nСлова и темы уже в черновике. Проверь и поправь их перед сохранением — после этого можно переходить к карточкам.'
+      ? `🍋 <b>Разбор ${subject} готов.</b>\nКнопка «Проверить слова и темы» откроет приложение Lingvoteka. Проверь переводы, убери лишнее и сохрани выбранное. Из сохранённых слов появятся карточки.\n\nПока результат не подтверждён, в словарь ничего не добавлено.`
       : state === 'READY'
-        ? '🍋 <b>Урок сохранён.</b>\nСлова уже в словаре. Самое время немного попрактиковаться.'
+        ? '🍋 <b>Материал сохранён.</b>\nВыбранные слова и темы доступны в приложении. Можно вернуться к ним в любое время.'
         : state === 'PROCESSING'
-          ? '🍋 <b>Материал у меня.</b>\nРазбираю слова и грамматику. Когда черновик будет готов, обновлю это сообщение. Можно заниматься своими делами.'
+          ? `🍋 <b>${subject === 'текста' ? 'Текст получен' : 'Материал получен'}.</b>\nИщу слова с переводом и грамматические темы. Затем обновлю это сообщение и дам кнопку проверки результата в приложении. Ты выберешь, что сохранить; до этого в словарь ничего не добавится.`
           : state === 'REJECTED'
             ? `<b>Материал не добавлен.</b>\n${escapeHtml(submission.errorText ?? 'Не удалось получить файл. Попробуй отправить его заново.')}`
             : '<b>С разбором не получилось.</b>\nМатериал сохранён: можно повторить попытку в приложении или заполнить черновик вручную.';
+  const canReview = state === 'READY' && !!submission.material?._count.vocabulary;
   const body = {
     chat_id: submission.chatId,
     text,
     parse_mode: 'HTML',
     reply_markup: telegramButtons(
-      submission.materialId ? `/materials/${submission.materialId}` : '',
+      canReview
+        ? `/review?materialId=${encodeURIComponent(submission.materialId!)}`
+        : submission.materialId
+          ? `/materials/${submission.materialId}`
+          : '',
+      state === 'REVIEW'
+        ? 'Проверить слова и темы'
+        : canReview
+          ? 'Повторить слова материала'
+          : submission.materialId
+            ? 'Открыть материал'
+            : 'Открыть приложение',
     ),
   };
   let messageId = submission.replyMessageId;

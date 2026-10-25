@@ -133,6 +133,34 @@ try {
   assert.equal(unlinked.payload, null);
   await replyToTelegramUpdate(1n);
   assert.equal(await prisma.material.count(), 0);
+  const navigation = (number: number, data: string, sender = 123) => ({
+    update_id: number,
+    callback_query: {
+      id: `synthetic-click-${number}`,
+      from: { id: sender, is_bot: false },
+      message: { message_id: 800, chat: { id: sender, type: 'private' } },
+      data,
+    },
+  });
+  const callbackService = new TelegramService({ enqueue } as never);
+  await callbackService.accept(navigation(100, 'add'));
+  await callbackService.accept(navigation(100, 'add'));
+  await callbackService.accept(navigation(101, 'home'));
+  await replyToTelegramUpdate(100n);
+  await replyToTelegramUpdate(101n);
+  const navigationReplies = calls.filter((call) => call.method === 'sendMessage');
+  assert.match(String(navigationReplies.at(-2)?.body.text), /Пришли материал/);
+  assert.match(String(navigationReplies.at(-1)?.body.text), /Ciao/);
+  assert.equal(await prisma.telegramUpdate.count({ where: { updateId: { in: [100n, 101n] } } }), 2);
+  assert.equal(await prisma.telegramSubmission.count(), 0, 'Menu clicks must not import material');
+  assert.equal(await prisma.material.count(), 0);
+  assert.ok(calls.some((call) => call.method === 'answerCallbackQuery'));
+  await callbackService.accept(navigation(102, 'add', 456));
+  await replyToTelegramUpdate(102n);
+  assert.match(
+    String(calls.filter((call) => call.method === 'sendMessage').at(-1)?.body.text),
+    /Сначала свяжи аккаунт/,
+  );
   await Promise.all(Array.from({ length: 6 }, () => receiveTelegramUpdate(update(2))));
   assert.equal(await prisma.telegramUpdate.count({ where: { updateId: 2n } }), 1);
   const textSubmission = await prisma.telegramSubmission.findFirstOrThrow({
@@ -150,6 +178,20 @@ try {
   await notifyTelegramSubmission(textSubmission.id);
   await processMaterialAnalysis(textMaterial.id);
   await notifyTelegramSubmission(textSubmission.id);
+  const readyReply = calls.filter((call) => call.method === 'editMessageText').at(-1)!;
+  assert.match(String(readyReply.body.text), /Разбор текста готов/);
+  assert.ok(!String(readyReply.body.text).includes('урок'));
+  assert.deepEqual(readyReply.body.reply_markup, {
+    inline_keyboard: [
+      [
+        {
+          text: 'Проверить слова и темы',
+          web_app: { url: `https://lingvoteka.vercel.app/materials/${textMaterial.id}` },
+        },
+      ],
+      [{ text: 'Главное меню', callback_data: 'home' }],
+    ],
+  });
   const repliesBefore = calls.filter((call) => call.method === 'editMessageText').length;
   await notifyTelegramSubmission(textSubmission.id);
   assert.equal(calls.filter((call) => call.method === 'editMessageText').length, repliesBefore);

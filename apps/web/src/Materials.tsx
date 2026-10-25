@@ -80,7 +80,7 @@ export function MaterialsPage() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">ТВОИ УРОКИ</p>
+          <p className="eyebrow">ТВОИ МАТЕРИАЛЫ</p>
           <h1 className="page-title">Материалы</h1>
           <p className="page-lead">
             Добавляй файлы или текст, чтобы собрать слова и темы для практики.
@@ -101,7 +101,7 @@ export function MaterialsPage() {
             ＋
           </div>
           <div>
-            <h2>Начни с одного урока</h2>
+            <h2>Добавь первый материал</h2>
             <p>Загрузи скриншот, PDF, презентацию, документ или вставь текст.</p>
             <Link className="inline-link" to="/materials/new">
               Добавить первый материал
@@ -176,14 +176,14 @@ export function NewMaterialPage() {
         ← Все материалы
       </Link>
       <p className="eyebrow">НОВЫЙ МАТЕРИАЛ</p>
-      <h1 className="page-title">Добавить урок</h1>
+      <h1 className="page-title">Добавить материал</h1>
       <p className="page-lead">
         Загрузи до пяти файлов или вставь текст. Перед сохранением слов и тем ты сможешь проверить
         результат.
       </p>
       <form className="material-form" onSubmit={(event) => void submit(event)}>
         <label htmlFor="material-title">
-          Название урока <span>подставим из первого файла, можно изменить</span>
+          Название материала <span>подставим из первого файла, можно изменить</span>
         </label>
         <input
           id="material-title"
@@ -267,7 +267,7 @@ export function NewMaterialPage() {
           </ul>
         )}
         <label htmlFor="material-text">
-          Текст урока <span>можно вместе с файлами</span>
+          Текст <span>фраза, записи с урока или текст вместе с файлами</span>
         </label>
         <textarea
           id="material-text"
@@ -448,19 +448,19 @@ export function MaterialDetailPage() {
       <Link className="back-link" to="/materials">
         ← Все материалы
       </Link>
-      <p className="eyebrow">МАТЕРИАЛ УРОКА</p>
+      <p className="eyebrow">МАТЕРИАЛ</p>
       <h1 className="page-title">{material.title}</h1>
-      <p className="page-lead">
-        {formatDate(material.lessonDate)
-          ? `Урок: ${formatDate(material.lessonDate)}.`
-          : 'Дата урока не указана.'}{' '}
-        {formatDate(material.deadline) ? `Дедлайн: ${formatDate(material.deadline)}.` : ''}
-      </p>
+      {(material.lessonDate || material.deadline) && (
+        <p className="page-lead">
+          {formatDate(material.lessonDate) ? `Урок: ${formatDate(material.lessonDate)}.` : ''}{' '}
+          {formatDate(material.deadline) ? `Дедлайн: ${formatDate(material.deadline)}.` : ''}
+        </p>
+      )}
       <section className="source-box">
         <h2>Источник</h2>
         {material.noteText && (
           <details>
-            <summary>Текст урока</summary>
+            <summary>Исходный текст</summary>
             <pre>{material.noteText}</pre>
           </details>
         )}
@@ -495,7 +495,7 @@ export function MaterialDetailPage() {
               <h2>Проверим, что получилось</h2>
               <p>
                 {material.status === 'REVIEW'
-                  ? `AI-разбор готов: слов — ${vocabulary.length}, тем — ${grammar.length}. Проверь записи перед сохранением.`
+                  ? `Найдено слов: ${vocabulary.length}, тем: ${grammar.length}. Проверь переводы, убери лишнее и сохрани выбранное. Из сохранённых слов появятся карточки.`
                   : 'Добавь слова и темы вручную или запусти разбор ещё раз.'}
               </p>
             </div>
@@ -713,11 +713,11 @@ export function MaterialDetailPage() {
           <div className="review-heading">
             <div>
               <h2>Сохранённые записи</h2>
-              <p>Слова этого урока можно повторять отдельно от общей очереди.</p>
+              <p>Слова этого материала можно повторять отдельно от общей очереди.</p>
             </div>
             {material.vocabulary.length > 0 && (
               <ActionLink to={`/review?materialId=${encodeURIComponent(material.id)}`}>
-                Карточки этого урока
+                Карточки этого материала
               </ActionLink>
             )}
           </div>

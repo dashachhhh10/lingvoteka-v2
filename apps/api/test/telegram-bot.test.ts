@@ -5,7 +5,7 @@ import type { Request } from 'express';
 import { configureTelegramBot, initializeTelegramBot } from '../src/telegram-setup.js';
 import type { TelegramService } from '../src/telegram.service.js';
 import { botCopy, parseTelegramMessage } from '../src/telegram-message.js';
-import { telegramButtons } from '../src/telegram-intake.js';
+import { telegramButtons, telegramHomeButtons } from '../src/telegram-intake.js';
 import { TelegramController } from '../src/telegram.controller.js';
 import { telegramMiniAppUrl, telegramWebhookSecret } from '../src/telegram-bot.js';
 
@@ -80,9 +80,54 @@ test('start copy and launch buttons are readable and do not expose credentials',
     assert.equal(parsed?.kind, 'start');
     assert.match(botCopy('start'), /Ciao/);
     assert.equal(
-      telegramButtons().inline_keyboard[0]?.[0]?.web_app.url,
+      telegramButtons().inline_keyboard[0]?.[0]?.web_app?.url,
       'https://lingvoteka.vercel.app',
     );
+  } finally {
+    if (original === undefined) delete process.env.TELEGRAM_MINI_APP_URL;
+    else process.env.TELEGRAM_MINI_APP_URL = original;
+  }
+});
+
+test('navigation accepts only supported private callbacks and keeps repeated menu clicks distinct', () => {
+  const callback = {
+    update_id: 10,
+    callback_query: {
+      id: 'click-1',
+      from: { id: 123, is_bot: false },
+      message: { message_id: 456, chat: { id: 123, type: 'private' } },
+      data: 'add',
+    },
+  };
+  const first = parseTelegramMessage(callback);
+  assert.equal(first?.kind, 'add');
+  assert.equal(first?.callbackQueryId, 'click-1');
+  assert.equal(first?.payload, null);
+  const second = parseTelegramMessage({
+    ...callback,
+    update_id: 11,
+    callback_query: { ...callback.callback_query, id: 'click-2', data: 'home' },
+  });
+  assert.equal(second?.kind, 'start');
+  assert.notEqual(first?.messageId, second?.messageId);
+  for (const query of [
+    { ...callback.callback_query, data: 'delete' },
+    { ...callback.callback_query, from: { id: 999, is_bot: false } },
+    { ...callback.callback_query, message: { message_id: 456, chat: { id: 123, type: 'group' } } },
+  ])
+    assert.equal(parseTelegramMessage({ ...callback, callback_query: query }), null);
+});
+
+test('home menu separates in-chat guidance from launching the application', () => {
+  const original = process.env.TELEGRAM_MINI_APP_URL;
+  process.env.TELEGRAM_MINI_APP_URL = 'https://lingvoteka.vercel.app';
+  try {
+    const linked = telegramHomeButtons(true).inline_keyboard.flat();
+    const add = linked.find((button) => button.text === 'Добавить материал');
+    assert.deepEqual(add, { text: 'Добавить материал', callback_data: 'add' });
+    assert.ok(linked.some((button) => button.web_app?.url.endsWith('/review')));
+    assert.ok(linked.some((button) => button.web_app?.url.endsWith('/materials')));
+    assert.equal(telegramHomeButtons(false).inline_keyboard[0]?.[0]?.text, 'Связать аккаунт');
   } finally {
     if (original === undefined) delete process.env.TELEGRAM_MINI_APP_URL;
     else process.env.TELEGRAM_MINI_APP_URL = original;
@@ -154,6 +199,7 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
     );
     const registered = calls.find(({ method }) => method === 'setWebhook')!.body;
     assert.equal(registered.secret_token, secret);
+    assert.deepEqual(registered.allowed_updates, ['message', 'callback_query']);
     assert.ok(!JSON.stringify(result).includes(secret!));
     assert.ok(!JSON.stringify(result).includes('synthetic-token'));
     // Same derived secret is required by the real controller, not just the setup script.
