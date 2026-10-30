@@ -227,7 +227,7 @@ export function TiltedGridHero({
           // A shared vanishing point on the row's centre line, so the ends
           // grow evenly above and below it as they come toward the viewer.
           perspective: `${+(r * CAMERA).toFixed(3)}cqw`,
-          perspectiveOrigin: `50% ${axis}%`,
+          perspectiveOrigin: `50% var(--hero-card-axis, ${axis}%)`,
           maskImage: mask,
           WebkitMaskImage: mask,
         }}
@@ -243,7 +243,7 @@ export function TiltedGridHero({
               className={cn(tile, 'absolute')}
               style={{
                 left: `calc(50% - ${u(aspectRatio / 2)})`,
-                top: `calc(${axis}% - ${u(0.5)})`,
+                top: `calc(var(--hero-card-axis, ${axis}%) - ${u(0.5)})`,
                 width: u(aspectRatio),
                 height: u(1),
                 transformStyle: 'preserve-3d',

@@ -103,7 +103,7 @@ export function LandingPage() {
             tileHeight={26}
             axis={55}
             fade={10}
-            className="h-[760px] w-full sm:h-[820px]"
+            className="h-[760px] w-full [--hero-card-axis:42%] sm:h-[820px] sm:[--hero-card-axis:55%]"
           >
             <div className="relative z-10 flex h-full flex-col items-center justify-between px-page pb-9 pt-10 text-center sm:pb-12 sm:pt-12">
               <div className="max-w-[900px]">
