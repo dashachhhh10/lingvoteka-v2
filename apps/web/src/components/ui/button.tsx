@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react';
 import { Link, type LinkProps } from 'react-router-dom';
+import GradientButton, { GradientLink } from './button-1';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
 type ActionIcon = 'arrow' | 'plus' | 'close';
@@ -63,6 +64,13 @@ export function Button({
   type = 'button',
   ...props
 }: ComponentProps<'button'> & Appearance) {
+  if (icon === 'arrow') {
+    return (
+      <GradientButton {...props} type={type} variant={variant} className={className}>
+        {children}
+      </GradientButton>
+    );
+  }
   return (
     <button {...props} type={type} className={classes(variant, icon, className)}>
       <Content icon={icon}>{children}</Content>
@@ -77,6 +85,13 @@ export function ActionLink({
   className = '',
   ...props
 }: LinkProps & Appearance) {
+  if (icon === 'arrow') {
+    return (
+      <GradientLink {...props} variant={variant} className={className}>
+        {children}
+      </GradientLink>
+    );
+  }
   return (
     <Link {...props} className={classes(variant, icon, className)}>
       <Content icon={icon}>{children}</Content>
