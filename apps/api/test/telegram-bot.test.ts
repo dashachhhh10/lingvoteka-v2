@@ -183,7 +183,12 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
         : method === 'getWebhookInfo'
           ? { url: webhookUrl, pending_update_count: 0 }
           : method === 'getChatMenuButton'
-            ? { type: menuType, ...(menuType === 'web_app' ? { web_app: { url: menuUrl } } : {}) }
+            ? {
+                type: menuType,
+                ...(menuType === 'web_app'
+                  ? { text: 'Lingvoteka', web_app: { url: menuUrl } }
+                  : {}),
+              }
             : method === 'getMyCommands'
               ? (calls.find((call) => call.method === 'setMyCommands')?.body.commands ?? [])
               : true;
@@ -231,7 +236,7 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
       name: 'Lingvoteka',
     });
     assert.deepEqual(calls.find(({ method }) => method === 'setChatMenuButton')?.body, {
-      menu_button: { type: 'web_app', text: 'Открыть', web_app: { url } },
+      menu_button: { type: 'web_app', text: 'Lingvoteka', web_app: { url } },
     });
     assert.equal(result.menu, 'web_app');
     const commands = calls.find(({ method }) => method === 'setMyCommands')!.body.commands as {

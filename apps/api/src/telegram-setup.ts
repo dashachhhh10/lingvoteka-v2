@@ -24,7 +24,7 @@ export async function configureTelegramBot(apply: boolean) {
   await telegramApi('setMyCommands', { commands });
   // The button beside the input opens the Mini App; typing `/` still suggests the commands.
   await telegramApi('setChatMenuButton', {
-    menu_button: { type: 'web_app', text: 'Открыть', web_app: { url } },
+    menu_button: { type: 'web_app', text: 'Lingvoteka', web_app: { url } },
   });
   await telegramApi('setWebhook', {
     url: webhook,
@@ -35,7 +35,7 @@ export async function configureTelegramBot(apply: boolean) {
     'getWebhookInfo',
     {},
   );
-  const menu = await telegramApi<{ type: string; web_app?: { url: string } }>(
+  const menu = await telegramApi<{ type: string; text?: string; web_app?: { url: string } }>(
     'getChatMenuButton',
     {},
   );
@@ -66,6 +66,7 @@ export async function configureTelegramBot(apply: boolean) {
     mode: 'apply',
     pendingUpdates: info.pending_update_count,
     menu: menu.type,
+    menuText: menu.text,
     commands: savedCommands.map((item) => `/${item.command}`),
   };
 }
