@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -21,7 +22,8 @@ type VocabItem = {
   example: string | null;
   partOfSpeech: string | null;
   semanticTopic: string | null;
-  categoryStatus: 'PENDING' | 'READY' | 'ERROR' | 'AWAITING_APPROVAL';
+  categoryStatus:
+    'PENDING' | 'READY' | 'ERROR' | 'AWAITING_APPROVAL' | 'RECHECK_PENDING' | 'RECHECK_ERROR';
   reviewStates: { due: string; lastReviewedAt: string }[];
   materials: { material: { id: string; title: string; createdAt: string } }[];
 };
@@ -46,7 +48,9 @@ export function VocabularyPage() {
     queryKey: ['vocabulary'],
     queryFn: () => api<VocabItem[]>('/api/vocabulary'),
     refetchInterval: (query) =>
-      query.state.data?.some((item) => item.categoryStatus === 'PENDING') ? 5_000 : false,
+      query.state.data?.some((item) => ['PENDING', 'RECHECK_PENDING'].includes(item.categoryStatus))
+        ? 5_000
+        : false,
   });
   const [query, setQuery] = useState('');
   const [groupBy, setGroupBy] = useState<'semanticTopic' | 'partOfSpeech'>('semanticTopic');
@@ -58,6 +62,10 @@ export function VocabularyPage() {
   const [example, setExample] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const recheckDialog = useRef<HTMLDialogElement>(null);
+  const recheckHeading = useId();
+  const [classifying, setClassifying] = useState(false);
+  const rechecking = items.some((item) => item.categoryStatus === 'RECHECK_PENDING');
   const displayedError = error || (loadError instanceof Error ? loadError.message : '');
   const categoryOf = (item: VocabItem) =>
     item.categoryStatus === 'ERROR'
@@ -121,13 +129,20 @@ export function VocabularyPage() {
       setPending(false);
     }
   }
-  async function classifyExistingCategories() {
+  async function classifyExistingCategories(recheck = false) {
+    if (classifying) return;
+    setClassifying(true);
     setError('');
     try {
-      await api('/api/vocabulary/categories/classify', { method: 'POST' });
+      await api(`/api/vocabulary/categories/${recheck ? 'recheck' : 'classify'}`, {
+        method: 'POST',
+      });
+      recheckDialog.current?.close();
       await queryClient.invalidateQueries({ queryKey: ['vocabulary'] });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось запустить определение тем');
+    } finally {
+      setClassifying(false);
     }
   }
   return (
@@ -203,12 +218,79 @@ export function VocabularyPage() {
           <button
             className="text-button sm:ml-auto"
             type="button"
+            disabled={classifying}
             onClick={() => void classifyExistingCategories()}
           >
             Определить темы для слов без категории
           </button>
         )}
       </div>
+      {items.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted">
+          <span>Широкие темы по значению слова, отдельно от частей речи.</span>
+          <button
+            type="button"
+            className="text-button"
+            disabled={
+              classifying ||
+              rechecking ||
+              !items.some((item) => ['READY', 'RECHECK_ERROR'].includes(item.categoryStatus))
+            }
+            onClick={() => recheckDialog.current?.showModal()}
+          >
+            {rechecking ? 'Пересматриваем темы…' : 'Пересмотреть темы'}
+          </button>
+        </div>
+      )}
+      {rechecking && (
+        <p className="mt-3 text-sm text-muted" role="status">
+          Проверяем распределение по темам. Можно уйти и вернуться позже. Пока сохраняем прежние
+          группы.
+        </p>
+      )}
+      {items.some((item) => item.categoryStatus === 'RECHECK_ERROR') && (
+        <p className="mt-3 text-sm text-muted" role="status">
+          Часть тем не удалось пересмотреть. Прежние группы сохранены — попробуй ещё раз.
+        </p>
+      )}
+      <dialog
+        ref={recheckDialog}
+        aria-labelledby={recheckHeading}
+        onCancel={(event) => {
+          if (classifying) event.preventDefault();
+        }}
+        className="m-auto max-h-[calc(100dvh-40px)] w-[calc(100%-40px)] max-w-lg overflow-y-auto rounded-3xl border border-line bg-surface p-6 text-ink backdrop:bg-black/40 sm:p-8"
+      >
+        <h2 id={recheckHeading} className="m-0 text-2xl font-medium tracking-tight">
+          Пересмотреть темы словаря?
+        </h2>
+        <p className="mt-4 text-sm leading-relaxed text-muted">
+          AI заново распределит сохранённые слова по 15 широким темам. Текущие темы, в том числе
+          выбранные вручную, могут измениться. Слова, переводы, части речи и прогресс повторения
+          сохранятся.
+        </p>
+        <p className="text-sm leading-relaxed text-muted">
+          Для проверки отправим Gemini слова, переводы и примеры. Если проверка не удастся, прежние
+          группы останутся.
+        </p>
+        {error && (
+          <p className="form-message error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button
+            variant="secondary"
+            disabled={classifying}
+            onClick={() => recheckDialog.current?.close()}
+          >
+            Оставить как есть
+          </Button>
+          <Button disabled={classifying} onClick={() => void classifyExistingCategories(true)}>
+            {classifying ? 'Запускаем…' : 'Пересмотреть темы'}
+          </Button>
+        </div>
+      </dialog>
       {items.some((item) => item.categoryStatus === 'AWAITING_APPROVAL') && (
         <p className="vocab-ai-note">При определении тем слова и переводы отправляются Gemini.</p>
       )}

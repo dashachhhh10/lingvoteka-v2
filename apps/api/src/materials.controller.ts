@@ -52,7 +52,12 @@ import {
 import { SessionGuard } from './session.guard.js';
 import { validateMaterialInput, withStoredMaterialFiles } from './material-input.js';
 import { normaliseMeaning, normaliseTerm } from './vocabulary-identity.js';
-import { isPartOfSpeech, isSemanticTopic, validCategories } from './vocabulary-categories.js';
+import {
+  isPartOfSpeech,
+  isSemanticTopic,
+  normalizeSemanticTopic,
+  validCategories,
+} from './vocabulary-categories.js';
 
 async function writeMaterial<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
@@ -303,7 +308,8 @@ export class MaterialsController {
     await writeMaterial(async (tx) => {
       for (const item of vocabulary) {
         const partOfSpeech = isPartOfSpeech(item.partOfSpeech) ? item.partOfSpeech : null;
-        const semanticTopic = isSemanticTopic(item.semanticTopic) ? item.semanticTopic : null;
+        const topic = normalizeSemanticTopic(item.semanticTopic);
+        const semanticTopic = isSemanticTopic(topic) ? topic : null;
         const categorized = validCategories(partOfSpeech, semanticTopic);
         const existingWords = await tx.vocabItem.findMany({
           where: { ownerId, normalized: normaliseTerm(item.term) },

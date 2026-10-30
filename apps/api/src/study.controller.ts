@@ -144,6 +144,18 @@ export class StudyController {
     return { queued: result.count };
   }
 
+  @Post('vocabulary/categories/recheck')
+  @ApiOperation({ summary: 'Пересмотреть все лексические темы, сохранив части речи и прогресс' })
+  @ApiCreatedResponse({ type: CategoryQueueDto })
+  async recheckCategories(@Req() request: Request) {
+    const ownerId = await this.userId(request);
+    const result = await prisma.vocabItem.updateMany({
+      where: { ownerId, categoryStatus: { in: ['READY', 'RECHECK_ERROR'] } },
+      data: { categoryStatus: 'RECHECK_PENDING' },
+    });
+    return { queued: result.count };
+  }
+
   @Post('vocabulary')
   @ApiOperation({ summary: 'Добавить слово вручную' })
   @ApiBody({ type: AddVocabularyDto })

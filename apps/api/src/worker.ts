@@ -2,6 +2,7 @@ import 'dotenv/config';
 import type { JobWithMetadata } from 'pg-boss';
 import { processFileDeletions } from './file-cleanup.js';
 import { prisma } from './database.js';
+import { PENDING_CATEGORY_STATUSES } from './vocabulary-categories.js';
 import { validateFileStorage } from './file-storage.js';
 import { processMaterialAnalysis } from './material-analysis-job.js';
 import { processGrammarGeneration } from './grammar-generation-job.js';
@@ -47,7 +48,7 @@ async function reconcileProcessingMaterials(): Promise<void> {
 
 async function reconcileVocabulary(): Promise<void> {
   const owners = await prisma.vocabItem.findMany({
-    where: { categoryStatus: 'PENDING' },
+    where: { categoryStatus: { in: PENDING_CATEGORY_STATUSES } },
     distinct: ['ownerId'],
     select: { ownerId: true },
     take: 100,

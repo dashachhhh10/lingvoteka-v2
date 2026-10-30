@@ -89,7 +89,10 @@ export class CategorizedVocabItemDto extends VocabItemDto {
     string | null;
   @ApiProperty({ type: String, enum: [...SEMANTIC_TOPICS], nullable: true }) semanticTopic!:
     string | null;
-  @ApiProperty({ type: String, enum: ['PENDING', 'READY', 'ERROR', 'AWAITING_APPROVAL'] })
+  @ApiProperty({
+    type: String,
+    enum: ['PENDING', 'READY', 'ERROR', 'AWAITING_APPROVAL', 'RECHECK_PENDING', 'RECHECK_ERROR'],
+  })
   categoryStatus!: string;
 }
 

@@ -773,7 +773,11 @@ export function MaterialDetailPage() {
                   <label>
                     Лексическая тема
                     <SelectField
-                      value={item.semanticTopic ?? ''}
+                      value={
+                        item.semanticTopic === 'Здоровье'
+                          ? 'Тело и здоровье'
+                          : (item.semanticTopic ?? '')
+                      }
                       onChange={(event) =>
                         setVocabulary((items) =>
                           items.map((row, i) =>
