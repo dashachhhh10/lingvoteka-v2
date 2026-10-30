@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { api } from './api';
-import { ActionLink, Button } from './components/ui/button';
+import { ActionLink, Button, ControlIcon } from './components/ui/button';
 import { SearchField } from './components/ui/fields';
 import type { Check, Exercise, Topic, TopicListItem } from './grammar-types';
 
@@ -99,9 +99,14 @@ export function PracticePage() {
                 Добавь материал и подтверди грамматические темы или создай тему вручную.
               </p>
               <div className="flex flex-wrap items-center gap-4">
-                <ActionLink to="/materials/new">Добавить материал</ActionLink>
-                <Link className="text-sm text-olive underline underline-offset-4" to="/grammar">
-                  Добавить тему вручную
+                <ActionLink icon="plus" to="/materials/new">
+                  Добавить материал
+                </ActionLink>
+                <Link
+                  className="inline-flex items-center gap-2 text-sm text-olive underline underline-offset-4"
+                  to="/grammar"
+                >
+                  Добавить тему вручную <ControlIcon name="plus" />
                 </Link>
               </div>
             </div>

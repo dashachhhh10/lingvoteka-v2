@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
-import { ActionLink, Button } from './components/ui/button';
+import { ActionLink, Button, ControlIcon } from './components/ui/button';
 import { SearchField } from './components/ui/fields';
 
 import type { TopicListItem, Theory, Topic } from './grammar-types';
@@ -95,7 +95,7 @@ export function GrammarPage() {
               onChange={(event) => setSummary(event.target.value)}
             />
           </label>
-          <Button className="justify-self-start" type="submit" disabled={pending}>
+          <Button icon="plus" className="justify-self-start" type="submit" disabled={pending}>
             {pending ? 'Добавляем…' : 'Добавить тему'}
           </Button>
         </form>
@@ -119,8 +119,8 @@ export function GrammarPage() {
           <div>
             <h2>Тем пока нет</h2>
             <p>Добавь материал с урока или создай тему вручную.</p>
-            <Link className="inline-link" to="/materials/new">
-              Добавить материал
+            <Link className="inline-link !inline-flex items-center gap-2" to="/materials/new">
+              Добавить материал <ControlIcon name="plus" />
             </Link>
           </div>
         </section>
@@ -396,8 +396,10 @@ export function GrammarDetailPage() {
                       </div>
                     ))}
                     {theoryDraft.examples.length < 4 && (
-                      <button
-                        className="secondary-button justify-self-start"
+                      <Button
+                        icon="plus"
+                        variant="secondary"
+                        className="justify-self-start"
                         type="button"
                         onClick={() =>
                           setTheoryDraft({
@@ -406,8 +408,8 @@ export function GrammarDetailPage() {
                           })
                         }
                       >
-                        + Добавить пример
-                      </button>
+                        Добавить пример
+                      </Button>
                     )}
                   </div>
                   <div className="grid gap-3">
@@ -449,8 +451,10 @@ export function GrammarDetailPage() {
                       </div>
                     ))}
                     {theoryDraft.mistakes.length < 4 && (
-                      <button
-                        className="secondary-button justify-self-start"
+                      <Button
+                        icon="plus"
+                        variant="secondary"
+                        className="justify-self-start"
                         type="button"
                         onClick={() =>
                           setTheoryDraft({
@@ -459,8 +463,8 @@ export function GrammarDetailPage() {
                           })
                         }
                       >
-                        + Добавить ошибку
-                      </button>
+                        Добавить ошибку
+                      </Button>
                     )}
                   </div>
                   <p className="text-sm text-muted">

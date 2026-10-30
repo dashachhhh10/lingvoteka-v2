@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
-import { ActionLink, Button } from './components/ui/button';
+import { ActionLink, Button, ControlIcon } from './components/ui/button';
 import { SelectField } from './components/ui/fields';
 import { StaggerList } from './Motion';
 import { partsOfSpeech, semanticTopics } from './vocabulary-categories';
@@ -179,7 +179,9 @@ export function MaterialsPage() {
             Добавляй файлы или текст, чтобы собрать слова и темы для практики.
           </p>
         </div>
-        <ActionLink to="/materials/new">Добавить материал</ActionLink>
+        <ActionLink icon="plus" to="/materials/new">
+          Добавить материал
+        </ActionLink>
       </div>
       {error && (
         <p className="form-message error" role="alert">
@@ -196,8 +198,8 @@ export function MaterialsPage() {
           <div>
             <h2>Добавь первый материал</h2>
             <p>Загрузи скриншот, PDF, презентацию, документ или вставь текст.</p>
-            <Link className="inline-link" to="/materials/new">
-              Добавить первый материал
+            <Link className="inline-link !inline-flex items-center gap-2" to="/materials/new">
+              Добавить первый материал <ControlIcon name="plus" />
             </Link>
           </div>
         </section>
@@ -382,13 +384,14 @@ export function NewMaterialPage() {
             {error}
           </p>
         )}
-        <button
-          className="primary-button form-action"
+        <Button
+          icon="plus"
+          className="form-action w-full"
           type="submit"
           disabled={pending || (!noteText.trim() && files.length === 0)}
         >
           {pending ? 'Сохраняем…' : 'Добавить и разобрать'}
-        </button>
+        </Button>
       </form>
     </>
   );
@@ -654,11 +657,11 @@ export function MaterialDetailPage() {
                 Слова и выражения <span>{vocabulary.length}</span>
               </h3>
               <button
-                className="text-button"
+                className="text-button inline-flex items-center gap-2"
                 type="button"
                 onClick={() => setVocabulary((items) => [...items, emptyVocab()])}
               >
-                + Добавить слово
+                Добавить слово <ControlIcon name="plus" />
               </button>
             </div>
             {displayedVocabulary.map((item, index) => (
@@ -812,11 +815,11 @@ export function MaterialDetailPage() {
                 Грамматические темы <span>{grammar.length}</span>
               </h3>
               <button
-                className="text-button"
+                className="text-button inline-flex items-center gap-2"
                 type="button"
                 onClick={() => setGrammar((items) => [...items, emptyGrammar()])}
               >
-                + Добавить тему
+                Добавить тему <ControlIcon name="plus" />
               </button>
             </div>
             {displayedGrammar.map((item, index) => (
@@ -869,14 +872,15 @@ export function MaterialDetailPage() {
               </div>
             ))}
           </section>
-          <button
-            className="primary-button form-action"
+          <Button
+            icon="plus"
+            className="form-action w-full"
             type="button"
             onClick={() => void saveReview()}
             disabled={pending}
           >
             {pending ? 'Добавляем…' : 'Добавить'}
-          </button>
+          </Button>
         </>
       ) : (
         <>

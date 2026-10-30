@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import gsap from 'gsap';
 import { api } from './api';
-import { ActionLink, Button } from './components/ui/button';
+import { ActionLink, Button, ControlIcon } from './components/ui/button';
 import { SearchField, SelectField } from './components/ui/fields';
 
 type VocabItem = {
@@ -314,7 +314,7 @@ export function VocabularyPage() {
             Пример <span>необязательно</span>
             <input value={example} onChange={(event) => setExample(event.target.value)} />
           </label>
-          <Button className="justify-self-start" type="submit" disabled={pending}>
+          <Button icon="plus" className="justify-self-start" type="submit" disabled={pending}>
             {pending ? 'Добавляем…' : 'Добавить слово'}
           </Button>
         </form>
@@ -329,8 +329,8 @@ export function VocabularyPage() {
           <div>
             <h2>Словарь ждёт первого слова</h2>
             <p>Добавь слово вручную или загрузи материал с урока.</p>
-            <Link className="inline-link" to="/materials/new">
-              Добавить материал
+            <Link className="inline-link !inline-flex items-center gap-2" to="/materials/new">
+              Добавить материал <ControlIcon name="plus" />
             </Link>
           </div>
         </section>

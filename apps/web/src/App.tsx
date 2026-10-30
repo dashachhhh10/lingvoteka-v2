@@ -644,7 +644,9 @@ function TodayPage() {
               Добавь текст, файл или фото. Мы предложим слова и темы, а ты выберешь, что сохранить и
               изучать.
             </p>
-            <ActionLink to="/materials/new">Добавить материал</ActionLink>
+            <ActionLink icon="plus" to="/materials/new">
+              Добавить материал
+            </ActionLink>
           </div>
         ) : (
           <div>
