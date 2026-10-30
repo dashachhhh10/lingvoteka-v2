@@ -1,10 +1,11 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { Link } from 'react-router-dom';
 import { ThemeSwitch } from './theme';
-import { WordWheel, type WordWheelItem } from './WordWheel';
+import { TiltedGridHero, type TiltedGridCard } from './components/ui/tilted-grid-hero';
+import { ActionLink } from './components/ui/button';
 
-const sampleWords: WordWheelItem[] = [
+const sampleWords: TiltedGridCard[] = [
   {
     word: 'il limone',
     translation: 'лимон',
@@ -52,6 +53,7 @@ const steps = [
 ];
 
 export function LandingPage() {
+  const [motionPaused, setMotionPaused] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -86,58 +88,66 @@ export function LandingPage() {
           </nav>
           <div className="flex items-center gap-3">
             <ThemeSwitch />
-            <Link
-              className="rounded-control bg-action px-4 py-2.5 text-sm font-semibold text-action-ink transition hover:brightness-95"
-              to="/login"
-            >
-              Войти
-            </Link>
+            <ActionLink to="/login">Войти</ActionLink>
           </div>
         </div>
       </header>
 
       <main>
-        <section className="mx-auto grid max-w-[1360px] items-center gap-x-10 gap-y-11 px-page pb-16 pt-12 lg:min-h-[700px] lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:py-16">
-          <div className="max-w-[640px]">
-            <p data-landing-reveal className="mb-5 text-sm font-semibold text-olive">
-              Итальянский из твоих уроков
-            </p>
-            <h1
-              data-landing-reveal
-              className="max-w-[13.5ch] font-display text-[clamp(3rem,5.3vw,5.2rem)] font-semibold leading-[1.04] tracking-[-0.035em] text-balance"
-            >
-              Урок закончился.
-              <br />
-              <span className="text-olive">Итальянский остался.</span>
-            </h1>
-            <p
-              data-landing-reveal
-              className="mt-7 max-w-[54ch] text-[clamp(1rem,1.5vw,1.25rem)] leading-[1.7] text-muted"
-            >
-              Материалы, слова и грамматика больше не теряются между занятиями. Загружай то, что
-              было на уроке, проверяй разбор и возвращайся к важному в нужный момент.
-            </p>
-            <div data-landing-reveal className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
-              <Link
-                to="/login"
-                className="inline-flex min-h-12 items-center justify-center rounded-control bg-action px-6 py-3 font-semibold text-action-ink transition hover:-translate-y-0.5 hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-olive"
-              >
-                Войти в Lingvoteka
-              </Link>
-              <Link
-                to="/register"
-                className="text-sm font-semibold text-ink underline decoration-lemon underline-offset-4 hover:text-olive"
-              >
-                Создать аккаунт по приглашению
-              </Link>
+        <section aria-labelledby="landing-title">
+          <TiltedGridHero
+            cards={sampleWords}
+            paused={motionPaused}
+            speed={5}
+            curve={65}
+            tileHeight={26}
+            axis={55}
+            fade={10}
+            className="h-[760px] w-full sm:h-[820px]"
+          >
+            <div className="relative z-10 flex h-full flex-col items-center justify-between px-page pb-9 pt-10 text-center sm:pb-12 sm:pt-12">
+              <div className="max-w-[900px]">
+                <p data-landing-reveal className="mb-4 text-sm font-semibold text-olive">
+                  Итальянский из твоих уроков
+                </p>
+                <h1
+                  id="landing-title"
+                  data-landing-reveal
+                  className="font-display text-[clamp(2.5rem,5.5vw,5rem)] font-semibold leading-[1.06] tracking-[-0.035em] text-balance"
+                >
+                  Урок закончился.
+                  <br />
+                  <span className="text-olive">Итальянский остался.</span>
+                </h1>
+              </div>
+              <div className="flex max-w-[600px] flex-col items-center">
+                <p data-landing-reveal className="text-base leading-relaxed text-muted sm:text-lg">
+                  Превращай материалы уроков в свои слова, карточки и практику. Проверяй разбор и
+                  возвращайся к важному в своём ритме.
+                </p>
+                <div
+                  data-landing-reveal
+                  className="mt-6 flex flex-wrap items-center justify-center gap-4 sm:gap-6"
+                >
+                  <ActionLink to="/login">Войти в Lingvoteka</ActionLink>
+                  <Link
+                    to="/register"
+                    className="text-sm font-semibold underline decoration-lemon underline-offset-4 hover:text-olive"
+                  >
+                    Создать аккаунт по приглашению
+                  </Link>
+                </div>
+                <button
+                  type="button"
+                  aria-pressed={motionPaused}
+                  onClick={() => setMotionPaused((value) => !value)}
+                  className="mt-4 min-h-11 rounded-full px-4 text-xs text-muted underline underline-offset-4 motion-reduce:hidden"
+                >
+                  {motionPaused ? 'Продолжить движение карточек' : 'Приостановить карточки'}
+                </button>
+              </div>
             </div>
-            <p data-landing-reveal className="mt-8 text-sm text-muted">
-              Материал → проверка → практика → повторение
-            </p>
-          </div>
-          <div data-landing-reveal className="min-w-0">
-            <WordWheel items={sampleWords} />
-          </div>
+          </TiltedGridHero>
         </section>
 
         <section id="how-it-works" className="border-y border-line bg-surface">
@@ -178,12 +188,7 @@ export function LandingPage() {
                 заданного уровня: содержание определяют твои уроки.
               </p>
             </div>
-            <Link
-              to="/login"
-              className="inline-flex min-h-12 items-center justify-center rounded-control bg-action px-6 py-3 font-semibold text-action-ink transition hover:brightness-95"
-            >
-              Перейти к занятиям
-            </Link>
+            <ActionLink to="/login">Перейти к занятиям</ActionLink>
           </div>
         </section>
       </main>

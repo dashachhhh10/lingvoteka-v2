@@ -9,7 +9,7 @@ type GradientAppearance = {
 };
 
 function appearance(variant: string, className: string) {
-  return `gradient-button relative isolate inline-flex min-h-12 max-w-full items-center justify-center rounded-full px-6 py-3 text-center text-sm font-medium leading-6 no-underline gradient-${variant} ${className}`;
+  return `gradient-button text-center text-sm font-medium gradient-${variant} ${className}`;
 }
 
 function dimensions(width: string | undefined, height: string | undefined, style?: CSSProperties) {
@@ -34,7 +34,7 @@ export default function GradientButton({
       className={appearance(variant, className)}
       style={dimensions(width, height, style)}
     >
-      <span className="relative z-10 min-w-0">{children}</span>
+      <span className="min-w-0">{children}</span>
     </button>
   );
 }
@@ -54,7 +54,7 @@ export function GradientLink({
       className={appearance(variant, className)}
       style={dimensions(width, height, style)}
     >
-      <span className="relative z-10 min-w-0">{children}</span>
+      <span className="min-w-0">{children}</span>
     </Link>
   );
 }

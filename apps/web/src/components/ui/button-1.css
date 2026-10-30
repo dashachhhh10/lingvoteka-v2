@@ -1,70 +1,63 @@
-@property --gradient-button-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
+.gradient-button,
+.primary-button.primary-button,
+.secondary-button.secondary-button,
+.action-link.action-link {
+  --gradient-fill: var(--action);
+  --gradient-ink: var(--action-ink);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 11px 23px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  color: var(--gradient-ink);
+  background:
+    linear-gradient(var(--gradient-fill), var(--gradient-fill)) padding-box,
+    linear-gradient(110deg, var(--action), var(--vine-olive), var(--action)) border-box;
+  text-decoration: none;
+  line-height: 1.5;
+  transform: none;
+  animation: none;
+  transition: box-shadow 180ms ease;
 }
-
-.gradient-button {
-  --gradient-button-fill: var(--surface);
-  border: 0;
-  color: var(--ink);
-  background: conic-gradient(
-    from var(--gradient-button-angle),
-    var(--action),
-    var(--accent-olive),
-    var(--accent-lemon),
-    var(--action)
-  );
-  transition: transform 180ms ease;
-}
-.gradient-button::after {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  z-index: -1;
-  border-radius: inherit;
-  background: var(--gradient-button-fill);
-  transition: background-color 240ms ease;
+.gradient-button > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
 }
 .gradient-secondary,
-.gradient-ghost {
-  --gradient-button-fill: var(--canvas);
+.gradient-ghost,
+.secondary-button.secondary-button {
+  --gradient-fill: var(--surface);
+  --gradient-ink: var(--ink);
 }
 .gradient-button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 4px;
-  animation: gradient-button-turn 3s linear infinite;
-}
-.gradient-button:active:not(:disabled) {
-  transform: scale(0.98);
-}
-.gradient-button:active:not(:disabled)::after,
-.gradient-button:focus-visible::after {
-  background: var(--accent-olive-soft);
 }
 .gradient-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  animation: none;
 }
 @media (hover: hover) and (pointer: fine) {
-  .gradient-button:hover:not(:disabled) {
-    animation: gradient-button-turn 3s linear infinite;
-  }
-  .gradient-button:hover:not(:disabled)::after {
-    background: var(--accent-olive-soft);
-  }
-}
-@keyframes gradient-button-turn {
-  to {
-    --gradient-button-angle: 360deg;
+  .gradient-button:hover:not(:disabled),
+  .primary-button.primary-button:hover:not(:disabled),
+  .secondary-button.secondary-button:hover:not(:disabled),
+  .action-link.action-link:hover {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--action) 18%, transparent);
+    background:
+      linear-gradient(var(--gradient-fill), var(--gradient-fill)) padding-box,
+      linear-gradient(110deg, var(--action), var(--vine-olive), var(--action)) border-box;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .gradient-button,
-  .gradient-button::after {
-    animation: none !important;
+  .gradient-button {
     transition: none;
-    transform: none !important;
   }
 }

@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react';
-import { Link, type LinkProps } from 'react-router-dom';
+import { type LinkProps } from 'react-router-dom';
 import GradientButton, { GradientLink } from './button-1';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
@@ -39,23 +39,14 @@ export function ControlIcon({
 }
 
 function Content({ children, icon }: Pick<Appearance, 'children' | 'icon'>) {
-  if (!icon) return children;
   return (
     <>
-      <span className="control-action-label">{children}</span>
-      <span className="control-action-icon" aria-hidden="true">
-        <ControlIcon name={icon} className={icon === 'arrow' ? 'control-arrow-out' : ''} />
-        {icon === 'arrow' && <ControlIcon name="arrow" className="control-arrow-in" />}
-      </span>
+      {children}
+      {icon && icon !== 'arrow' && <ControlIcon name={icon} />}
     </>
   );
 }
 
-function classes(variant: Variant, icon: ActionIcon | undefined, className: string) {
-  return `control-button control-${variant}${icon ? ' control-with-icon' : ''} ${className}`;
-}
-
-/** A single pill surface with its action icon inside. */
 export function Button({
   variant = 'primary',
   icon,
@@ -64,37 +55,23 @@ export function Button({
   type = 'button',
   ...props
 }: ComponentProps<'button'> & Appearance) {
-  if (icon === 'arrow') {
-    return (
-      <GradientButton {...props} type={type} variant={variant} className={className}>
-        {children}
-      </GradientButton>
-    );
-  }
   return (
-    <button {...props} type={type} className={classes(variant, icon, className)}>
+    <GradientButton {...props} type={type} variant={variant} className={className}>
       <Content icon={icon}>{children}</Content>
-    </button>
+    </GradientButton>
   );
 }
 
 export function ActionLink({
   variant = 'primary',
-  icon = 'arrow',
+  icon,
   children,
   className = '',
   ...props
 }: LinkProps & Appearance) {
-  if (icon === 'arrow') {
-    return (
-      <GradientLink {...props} variant={variant} className={className}>
-        {children}
-      </GradientLink>
-    );
-  }
   return (
-    <Link {...props} className={classes(variant, icon, className)}>
+    <GradientLink {...props} variant={variant} className={className}>
       <Content icon={icon}>{children}</Content>
-    </Link>
+    </GradientLink>
   );
 }
