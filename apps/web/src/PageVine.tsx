@@ -4,7 +4,7 @@ import gsap from 'gsap';
 const stem =
   'M -20 122 C 120 120 250 116 340 120 C 470 130 570 143 700 133 C 820 120 930 104 1020 109 C 1130 114 1260 127 1460 116';
 
-export function PageVine() {
+export function PageVine({ className = '' }: { className?: string }) {
   const vine = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -36,7 +36,7 @@ export function PageVine() {
   }, []);
 
   return (
-    <div className="page-vine" aria-hidden="true" ref={vine}>
+    <div className={`page-vine ${className}`} aria-hidden="true" ref={vine}>
       <svg viewBox="0 0 1440 156" preserveAspectRatio="xMidYMid slice" focusable="false">
         <g className="page-vine-stem">
           <path d={stem} />

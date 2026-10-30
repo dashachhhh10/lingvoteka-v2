@@ -96,7 +96,6 @@ export type TiltedGridHeroProps = {
    * few tiles the frame needs. Short lists simply repeat.
    */
   cards: TiltedGridCard[];
-  paused?: boolean;
   /**
    * Seconds for the row to advance by one tile. Speed is per tile, not per
    * crossing, so a phone and an ultrawide move at the same pace.
@@ -126,7 +125,6 @@ export type TiltedGridHeroProps = {
 
 export function TiltedGridHero({
   cards,
-  paused = false,
   speed = 5,
   tileHeight = 26,
   aspectRatio = 1.35,
@@ -249,7 +247,7 @@ export function TiltedGridHero({
                 transformStyle: 'preserve-3d',
                 // Tile t starts t tiles along the loop.
                 animation: `${orbit} ${duration}s linear ${-t * speed}s infinite`,
-                animationPlayState: paused || !inView ? 'paused' : 'running',
+                animationPlayState: inView ? 'running' : 'paused',
               }}
               onAnimationIteration={(e) => {
                 // elapsedTime counts whole loops, missed events included.

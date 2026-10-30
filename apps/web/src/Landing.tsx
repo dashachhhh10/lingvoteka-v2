@@ -1,7 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { Link } from 'react-router-dom';
 import { ThemeSwitch } from './theme';
+import { PageVine } from './PageVine';
 import { TiltedGridHero, type TiltedGridCard } from './components/ui/tilted-grid-hero';
 import { ActionLink } from './components/ui/button';
 
@@ -53,7 +54,6 @@ const steps = [
 ];
 
 export function LandingPage() {
-  const [motionPaused, setMotionPaused] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -97,7 +97,6 @@ export function LandingPage() {
         <section aria-labelledby="landing-title">
           <TiltedGridHero
             cards={sampleWords}
-            paused={motionPaused}
             speed={5}
             curve={65}
             tileHeight={26}
@@ -137,17 +136,10 @@ export function LandingPage() {
                     Создать аккаунт по приглашению
                   </Link>
                 </div>
-                <button
-                  type="button"
-                  aria-pressed={motionPaused}
-                  onClick={() => setMotionPaused((value) => !value)}
-                  className="mt-4 min-h-11 rounded-full px-4 text-xs text-muted underline underline-offset-4 motion-reduce:hidden"
-                >
-                  {motionPaused ? 'Продолжить движение карточек' : 'Приостановить карточки'}
-                </button>
               </div>
             </div>
           </TiltedGridHero>
+          <PageVine className="!mb-0" />
         </section>
 
         <section id="how-it-works" className="border-y border-line bg-surface">
