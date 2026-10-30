@@ -3,7 +3,7 @@
 - Статус: active
 - Агент: Codex
 - Задача/сессия: 01a0fb6a-6124-77c1-9219-42199dcb9516-telegram-button-name-20261030-151353
-- Обновлено: 2026-10-30T15:14:32+03:00
+- Обновлено: 2026-10-30T15:18:20+03:00
 - Рабочая папка: /Users/dashachikunova/Lingvoteka
 - Ветка: dev
 - Планируемые файлы: apps/api/src/telegram-setup.ts, apps/api/test/telegram-bot.test.ts; README.md (только подпись кнопки), docs/project-context.md (уточнение), эта запись.
@@ -19,6 +19,8 @@
 ## Проверки
 
 Свежие Telegram unit — 11/11 PASS; pnpm typecheck, pnpm build, pnpm format:check, git diff --check — PASS. После публикации проверить настройки Telegram и health.
+
+В 29bcc17 три деплоя успешны, но getChatMenuButton сразу после setChatMenuButton вернул прежний текст «Открыть». Добавлена строгая проверка подписи Lingvoteka с ограниченными повторными чтениями через 1/3/6 секунд. Готовность не подтверждается, пока подпись не совпадёт; секреты и реальные материалы не затронуты.
 
 ## Следующие шаги / препятствия
 

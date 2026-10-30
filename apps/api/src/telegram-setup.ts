@@ -1,4 +1,5 @@
 import { synchronizeTelegramAvatar } from './telegram-brand.js';
+import { setTimeout as delay } from 'node:timers/promises';
 import { BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION } from './telegram-message.js';
 import {
   TelegramApiError,
@@ -9,6 +10,7 @@ import {
 
 export async function configureTelegramBot(apply: boolean) {
   const url = telegramMiniAppUrl();
+  const menuText = 'Lingvoteka';
   const webhook = new URL('/api/telegram/webhook', url).toString();
   const secret = telegramWebhookSecret();
   if (!secret) throw new Error('TELEGRAM_BOT_TOKEN is required');
@@ -24,7 +26,7 @@ export async function configureTelegramBot(apply: boolean) {
   await telegramApi('setMyCommands', { commands });
   // The button beside the input opens the Mini App; typing `/` still suggests the commands.
   await telegramApi('setChatMenuButton', {
-    menu_button: { type: 'web_app', text: 'Lingvoteka', web_app: { url } },
+    menu_button: { type: 'web_app', text: menuText, web_app: { url } },
   });
   await telegramApi('setWebhook', {
     url: webhook,
@@ -35,16 +37,20 @@ export async function configureTelegramBot(apply: boolean) {
     'getWebhookInfo',
     {},
   );
-  const menu = await telegramApi<{ type: string; text?: string; web_app?: { url: string } }>(
-    'getChatMenuButton',
-    {},
-  );
+  type Menu = { type: string; text?: string; web_app?: { url: string } };
+  let menu = await telegramApi<Menu>('getChatMenuButton', {});
   const savedCommands = await telegramApi<{ command: string }[]>('getMyCommands', {});
   if (info.url !== webhook) throw new Error('Telegram webhook verification failed');
   if (
     savedCommands.map((item) => item.command).join() !== commands.map((item) => item.command).join()
   )
     throw new Error('Telegram commands verification failed');
+  // Telegram can briefly return the previous label immediately after a successful update.
+  for (const waitMs of [1_000, 3_000, 6_000]) {
+    if (menu.type !== 'web_app' || menu.text === menuText) break;
+    await delay(waitMs);
+    menu = await telegramApi<Menu>('getChatMenuButton', {});
+  }
   // Telegram may canonicalize an origin-only menu URL by adding its trailing slash.
   let menuUrlMatches = false;
   try {
@@ -52,7 +58,7 @@ export async function configureTelegramBot(apply: boolean) {
   } catch {
     // An absent/malformed URL is a failed verification, never an error to serialize.
   }
-  if (menu.type !== 'web_app' || !menuUrlMatches) {
+  if (menu.type !== 'web_app' || menu.text !== menuText || !menuUrlMatches) {
     console.warn(
       `Telegram menu type ${['commands', 'default', 'web_app'].includes(menu.type) ? menu.type : 'unknown'}`,
     );
