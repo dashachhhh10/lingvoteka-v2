@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  Delete,
   Controller,
   Get,
   HttpCode,
@@ -26,6 +27,7 @@ import {
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiNotFoundResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -36,6 +38,7 @@ import type { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { auth } from './auth.js';
 import { prisma } from './database.js';
+import { annotateDraft } from './draft-matches.js';
 import { loadFile } from './file-storage.js';
 import type { Draft } from './material-analysis.js';
 import { MaterialQueueService } from './material-queue.js';
@@ -50,6 +53,24 @@ import { SessionGuard } from './session.guard.js';
 import { validateMaterialInput, withStoredMaterialFiles } from './material-input.js';
 import { normaliseMeaning, normaliseTerm } from './vocabulary-identity.js';
 import { isPartOfSpeech, isSemanticTopic, validCategories } from './vocabulary-categories.js';
+
+async function writeMaterial<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await prisma.$transaction(work, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      if (
+        attempt < 2 &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        ['P2034', 'P2002'].includes(error.code)
+      )
+        continue;
+      throw error;
+    }
+  }
+}
 
 @Controller('materials')
 @UseGuards(SessionGuard)
@@ -75,6 +96,15 @@ export class MaterialsController {
       },
     });
     if (!material) throw new NotFoundException('Материал не найден');
+    if (
+      material.analysisDraft &&
+      typeof material.analysisDraft === 'object' &&
+      !Array.isArray(material.analysisDraft)
+    ) {
+      const draft = material.analysisDraft as unknown as Draft;
+      if (Array.isArray(draft.vocabulary) && Array.isArray(draft.grammar))
+        return { ...material, analysisDraft: await annotateDraft(ownerId, draft) };
+    }
     return material;
   }
 
@@ -106,6 +136,49 @@ export class MaterialsController {
   @ApiNotFoundResponse({ description: 'Материал не принадлежит текущему пользователю' })
   async detail(@Req() request: Request, @Param('id') id: string) {
     return this.ownedMaterial(id, await this.ownerId(request));
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @ApiNoContentResponse({
+    description: 'Материал и уникальные записи удалены; файл поставлен на фоновое удаление',
+  })
+  @ApiOperation({
+    summary: 'Удалить свой материал, его уникальные учебные записи и запланировать удаление файлов',
+  })
+  @ApiParam({ name: 'id', description: 'ID материала' })
+  @ApiNotFoundResponse({ description: 'Материал не принадлежит текущему пользователю' })
+  async remove(@Req() request: Request, @Param('id') id: string) {
+    const ownerId = await this.ownerId(request);
+    await writeMaterial(async (tx) => {
+      const material = await tx.material.findFirst({
+        where: { id, ownerId },
+        include: { files: true, vocabulary: true, grammar: true },
+      });
+      if (!material) throw new NotFoundException('Материал не найден');
+      if (material.files.length)
+        await tx.fileDeletion.createMany({
+          data: material.files.map((file) => ({ storageKey: file.storageKey })),
+          skipDuplicates: true,
+        });
+      await tx.material.delete({ where: { id } });
+      await tx.vocabItem.deleteMany({
+        where: {
+          ownerId,
+          id: { in: material.vocabulary.map((item) => item.vocabItemId) },
+          manuallyAdded: false,
+          materials: { none: {} },
+        },
+      });
+      await tx.grammarTopic.deleteMany({
+        where: {
+          ownerId,
+          id: { in: material.grammar.map((item) => item.grammarTopicId) },
+          manuallyAdded: false,
+          materials: { none: {} },
+        },
+      });
+    });
   }
 
   @Post()
@@ -213,6 +286,7 @@ export class MaterialsController {
         typeof item.sourceExcerpt === 'string' ? item.sourceExcerpt.trim().slice(0, 500) : '',
       partOfSpeech: typeof item.partOfSpeech === 'string' ? item.partOfSpeech : '',
       semanticTopic: typeof item.semanticTopic === 'string' ? item.semanticTopic : '',
+      allowNewMeaning: item.allowNewMeaning === true,
     }));
     const grammar = body.grammar.map((item) => ({
       title: typeof item.title === 'string' ? item.title.trim().slice(0, 160) : '',
@@ -226,36 +300,46 @@ export class MaterialsController {
     ) {
       throw new BadRequestException('У каждого слова нужны написание и перевод, у темы — название');
     }
-    await prisma.$transaction(async (tx) => {
+    await writeMaterial(async (tx) => {
       for (const item of vocabulary) {
         const partOfSpeech = isPartOfSpeech(item.partOfSpeech) ? item.partOfSpeech : null;
         const semanticTopic = isSemanticTopic(item.semanticTopic) ? item.semanticTopic : null;
         const categorized = validCategories(partOfSpeech, semanticTopic);
-        const vocab = await tx.vocabItem.upsert({
-          where: {
-            ownerId_normalized_normalizedMeaning: {
+        const existingWords = await tx.vocabItem.findMany({
+          where: { ownerId, normalized: normaliseTerm(item.term) },
+          orderBy: { createdAt: 'asc' },
+        });
+        const exact = existingWords.find(
+          (word) => word.normalizedMeaning === normaliseMeaning(item.translation),
+        );
+        const existing = exact ?? (!item.allowNewMeaning ? existingWords[0] : undefined);
+        const vocab =
+          existing ??
+          (await tx.vocabItem.upsert({
+            where: {
+              ownerId_normalized_normalizedMeaning: {
+                ownerId,
+                normalized: normaliseTerm(item.term),
+                normalizedMeaning: normaliseMeaning(item.translation),
+              },
+            },
+            create: {
               ownerId,
               normalized: normaliseTerm(item.term),
               normalizedMeaning: normaliseMeaning(item.translation),
+              term: item.term,
+              translation: item.translation,
+              example: item.example || null,
+              partOfSpeech,
+              semanticTopic,
+              categoryStatus: categorized ? 'READY' : 'PENDING',
+              flashcards: { create: { kind: 'IT_TO_RU' } },
             },
-          },
-          create: {
-            ownerId,
-            normalized: normaliseTerm(item.term),
-            normalizedMeaning: normaliseMeaning(item.translation),
-            term: item.term,
-            translation: item.translation,
-            example: item.example || null,
-            partOfSpeech,
-            semanticTopic,
-            categoryStatus: categorized ? 'READY' : 'PENDING',
-            flashcards: { create: { kind: 'IT_TO_RU' } },
-          },
-          update: {},
-        });
+            update: {},
+          }));
         if (partOfSpeech || semanticTopic) {
-          const nextPartOfSpeech = partOfSpeech ?? vocab.partOfSpeech;
-          const nextSemanticTopic = semanticTopic ?? vocab.semanticTopic;
+          const nextPartOfSpeech = vocab.partOfSpeech ?? partOfSpeech;
+          const nextSemanticTopic = vocab.semanticTopic ?? semanticTopic;
           await tx.vocabItem.updateMany({
             where: { id: vocab.id, ownerId },
             data: {

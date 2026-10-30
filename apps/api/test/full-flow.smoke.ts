@@ -51,17 +51,29 @@ async function register(testEmail: string): Promise<void> {
   });
 }
 
-async function waitFor<T extends { status?: string; theoryStatus?: string }>(
-  label: string,
-  path: string,
-  ready: string,
-  maxMs = 180_000,
-): Promise<T> {
+async function waitFor<
+  T extends {
+    status?: string;
+    theoryStatus?: string;
+    practiceStatus?: string;
+    exercises?: unknown[];
+  },
+>(label: string, path: string, ready: string, maxMs = 180_000): Promise<T> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
     const result = await request<T>(label, path);
-    if (result.status === ready || result.theoryStatus === ready) return result;
-    if (result.status === 'ERROR' || result.theoryStatus === 'ERROR') {
+    if (
+      result.status === ready ||
+      (result.theoryStatus === ready &&
+        (label !== 'grammar generation' ||
+          (result.practiceStatus === 'READY' && Boolean(result.exercises?.length))))
+    )
+      return result;
+    if (
+      result.status === 'ERROR' ||
+      result.theoryStatus === 'ERROR' ||
+      result.practiceStatus === 'ERROR'
+    ) {
       throw new Error(`${label}: background task failed`);
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -124,8 +136,10 @@ try {
   const topics = await request<{ id: string }[]>('grammar list', '/api/grammar');
   if (!topics.length) throw new Error('Approved grammar topic missing');
   await request('grammar enqueue', `/api/grammar/${topics[0].id}/generate`, { method: 'POST' });
+  await request('practice enqueue', `/api/grammar/${topics[0].id}/practice`, { method: 'POST' });
   const generated = await waitFor<{
     theoryStatus: string;
+    practiceStatus: string;
     theory: unknown;
     exercises: { id: string }[];
   }>('grammar generation', `/api/grammar/${topics[0].id}`, 'READY');

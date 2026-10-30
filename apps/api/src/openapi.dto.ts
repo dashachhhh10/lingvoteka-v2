@@ -57,9 +57,16 @@ export class VocabularyDraftDto {
   @ApiPropertyOptional({ type: String, enum: [...SEMANTIC_TOPICS] }) semanticTopic?: string;
   @ApiPropertyOptional({ type: Boolean }) alreadyInVocabulary?: boolean;
   @ApiPropertyOptional({ type: Boolean }) otherMeaningInVocabulary?: boolean;
+  @ApiPropertyOptional({ type: String }) existingTranslation?: string;
+  @ApiPropertyOptional({
+    type: Boolean,
+    description: 'Явно сохранить другое значение уже существующего слова',
+  })
+  allowNewMeaning?: boolean;
 }
 
 export class GrammarDraftDto {
+  @ApiPropertyOptional({ type: Boolean }) alreadyInGrammar?: boolean;
   @ApiProperty({ type: String }) title!: string;
   @ApiProperty({ type: String }) summary!: string;
   @ApiProperty({ type: String }) sourceExcerpt!: string;
@@ -207,6 +214,7 @@ export class GrammarCountsDto {
 }
 
 export class GrammarListItemDto extends GrammarTopicSummaryDto {
+  @ApiProperty({ type: String }) practiceStatus!: string;
   @ApiProperty({ type: () => GrammarCountsDto }) _count!: GrammarCountsDto;
 }
 
@@ -239,6 +247,8 @@ export class GrammarMaterialLinkDto {
 }
 
 export class GrammarDetailDto extends GrammarTopicSummaryDto {
+  @ApiProperty({ type: String }) practiceStatus!: string;
+  @ApiProperty({ type: String, nullable: true }) practiceError!: string | null;
   @ApiProperty({ type: () => GrammarTheoryDto, nullable: true }) theory!: GrammarTheoryDto | null;
   @ApiProperty({ type: String, nullable: true }) theoryError!: string | null;
   @ApiProperty({ type: () => [GrammarExerciseDto] }) exercises!: GrammarExerciseDto[];

@@ -173,6 +173,7 @@ export class StudyController {
     return prisma.vocabItem.create({
       data: {
         ownerId,
+        manuallyAdded: true,
         term,
         normalized: normaliseTerm(term),
         translation,

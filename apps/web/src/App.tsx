@@ -26,6 +26,7 @@ import { ThemeProvider, ThemeSwitch } from './theme';
 import { MaterialDetailPage, MaterialsPage, NewMaterialPage } from './Materials';
 import { ReviewPage, VocabularyPage } from './Vocabulary';
 import { api } from './api';
+import { PracticePage, PracticeTopicPage } from './Practice';
 import { GrammarDetailPage, GrammarPage } from './Grammar';
 import { LandingPage } from './Landing';
 import { ActionLink } from './components/ui/button';
@@ -660,6 +661,26 @@ function TodayPage() {
           </div>
         )}
       </section>
+      <section
+        className="mt-8 flex flex-col gap-5 rounded-3xl border border-line bg-lemon-soft p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8"
+        aria-labelledby="today-practice-title"
+      >
+        <div>
+          <p className="mb-2 mt-0 text-xs font-semibold uppercase tracking-widest text-muted">
+            От правил к речи
+          </p>
+          <h2 id="today-practice-title" className="m-0 text-2xl font-medium tracking-tight">
+            Потренируем грамматику?
+          </h2>
+          <p className="mb-0 mt-3 max-w-xl text-sm leading-relaxed text-muted">
+            Выбери тему и закрепи её в короткой тренировке. Объяснение можно открыть, если
+            понадобится.
+          </p>
+        </div>
+        <ActionLink className="shrink-0 self-start sm:self-center" to="/practice">
+          Начать практику
+        </ActionLink>
+      </section>
       <section className="mt-12 sm:mt-16" aria-labelledby="today-sections-title">
         <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="today-sections-title" className="m-0 text-xl font-semibold tracking-tight">
@@ -806,6 +827,8 @@ export function App() {
               <Route path="materials/new" element={<NewMaterialPage />} />
               <Route path="materials/:id" element={<MaterialDetailPage />} />
               <Route path="vocabulary" element={<VocabularyPage />} />
+              <Route path="practice" element={<PracticePage />} />
+              <Route path="practice/:id" element={<PracticeTopicPage />} />
               <Route path="grammar" element={<GrammarPage />} />
               <Route path="grammar/:id" element={<GrammarDetailPage />} />
               <Route path="profile" element={<ProfilePage />} />

@@ -2,33 +2,11 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
-import { Button } from './components/ui/button';
+import { ActionLink, Button } from './components/ui/button';
 import { SearchField } from './components/ui/fields';
 
-type TopicListItem = {
-  id: string;
-  title: string;
-  summary: string | null;
-  theoryStatus: string;
-  _count: { exercises: number; materials: number };
-};
-type Theory = {
-  when: string;
-  formation: string;
-  examples: { italian: string; russian: string }[];
-  mistakes: string[];
-};
-type Topic = {
-  id: string;
-  title: string;
-  summary: string | null;
-  theory: Theory | null;
-  theoryStatus: string;
-  theoryError: string | null;
-  materials: { sourceExcerpt: string | null; material: { id: string; title: string } }[];
-  exercises: { id: string; position: number; prompt: string; options: string[] }[];
-};
-type Check = { correct: boolean; answerIndex: number; answer: string; explanation: string };
+import type { TopicListItem, Theory, Topic } from './grammar-types';
+import { GrammarPractice } from './Practice';
 const theoryFieldClass = 'control-field';
 
 export function GrammarPage() {
@@ -151,17 +129,28 @@ export function GrammarPage() {
       ) : (
         <div className="material-list">
           {shown.map((topic) => (
-            <Link key={topic.id} className="material-row" to={`/grammar/${topic.id}`}>
-              <span>
-                <strong>{topic.title}</strong>
-                <small>{topic.summary || `${topic._count.materials} источников`}</small>
-              </span>
-              <span className="material-status">
-                {topic.theoryStatus === 'READY'
-                  ? `${topic._count.exercises} упражнения`
-                  : 'Открыть тему'}
-              </span>
-            </Link>
+            <article
+              key={topic.id}
+              className="flex flex-col gap-4 border-t border-line py-6 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <h2 className="m-0 text-lg font-semibold tracking-tight">{topic.title}</h2>
+                <p className="mb-0 mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+                  {topic.summary || `${topic._count.materials} источников`}
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-4">
+                <Link
+                  className="text-sm text-olive underline underline-offset-4"
+                  to={`/grammar/${topic.id}`}
+                >
+                  Теория
+                </Link>
+                <ActionLink variant="secondary" to={`/practice/${topic.id}`}>
+                  Тренироваться
+                </ActionLink>
+              </div>
+            </article>
           ))}
         </div>
       )}
@@ -180,12 +169,13 @@ export function GrammarDetailPage() {
     queryKey: ['grammar', id],
     queryFn: () => api<Topic>(`/api/grammar/${id}`),
     enabled: Boolean(id),
-    refetchInterval: (query) => (query.state.data?.theoryStatus === 'GENERATING' ? 3_000 : false),
+    refetchInterval: (query) =>
+      query.state.data?.theoryStatus === 'GENERATING' ||
+      query.state.data?.practiceStatus === 'GENERATING'
+        ? 2_000
+        : false,
   });
   const [tab, setTab] = useState<'theory' | 'practice'>('theory');
-  const [exerciseIndex, setExerciseIndex] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [result, setResult] = useState<Check | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [theoryDraft, setTheoryDraft] = useState<Theory | null>(null);
@@ -215,30 +205,8 @@ export function GrammarDetailPage() {
       const generated = await api<Topic>(`/api/grammar/${id}/generate`, { method: 'POST' });
       queryClient.setQueryData(['grammar', id], generated);
       void queryClient.invalidateQueries({ queryKey: ['grammar'], exact: true });
-      setExerciseIndex(0);
-      setResult(null);
-      setSelected(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось создать объяснение');
-    } finally {
-      setPending(false);
-    }
-  }
-  async function check() {
-    const exercise = topic?.exercises[exerciseIndex];
-    if (!exercise || selected === null) return;
-    setPending(true);
-    setError('');
-    try {
-      setResult(
-        await api<Check>(`/api/grammar/exercises/${exercise.id}/check`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answerIndex: selected }),
-        }),
-      );
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Не удалось проверить ответ');
     } finally {
       setPending(false);
     }
@@ -273,7 +241,6 @@ export function GrammarDetailPage() {
         <Link to="/grammar">К темам</Link>
       </>
     );
-  const exercise = topic.exercises[exerciseIndex];
   return (
     <>
       <Link className="back-link" to="/grammar">
@@ -572,7 +539,7 @@ export function GrammarDetailPage() {
               <p>
                 {topic.theoryStatus === 'GENERATING'
                   ? 'Можно уйти со страницы и вернуться позже.'
-                  : 'Сгенерируй краткую теорию и упражнения по этой теме. Текст создаёт AI; его стоит проверить.'}
+                  : 'Создай краткое объяснение, если хочешь разобрать правило. Практику можно начать отдельно. Текст создаёт AI; его стоит проверить.'}
               </p>
               {topic.theoryStatus !== 'GENERATING' && (
                 <button
@@ -581,7 +548,7 @@ export function GrammarDetailPage() {
                   onClick={() => void generate()}
                   disabled={pending}
                 >
-                  {pending ? 'Создаём…' : 'Создать теорию и упражнения'}
+                  {pending ? 'Создаём…' : 'Создать объяснение'}
                 </button>
               )}
             </div>
@@ -606,102 +573,7 @@ export function GrammarDetailPage() {
           tabIndex={0}
           hidden={tab !== 'practice'}
         >
-          {!exercise ? (
-            topic.exercises.length && exerciseIndex >= topic.exercises.length ? (
-              <div className="theory-placeholder">
-                <h2>Практика завершена</h2>
-                <p>Ты ответила на все задания по этой теме.</p>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => {
-                    setExerciseIndex(0);
-                    setSelected(null);
-                    setResult(null);
-                  }}
-                >
-                  Пройти ещё раз
-                </button>
-              </div>
-            ) : (
-              <div className="theory-placeholder">
-                <h2>Упражнений пока нет</h2>
-                <p>Создай теорию, чтобы появились тренировочные задания.</p>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => {
-                    setTab('theory');
-                    theoryTabRef.current?.focus();
-                  }}
-                >
-                  Посмотреть теорию
-                </button>
-              </div>
-            )
-          ) : (
-            <>
-              <p className="subtle">
-                Задание {exerciseIndex + 1} из {topic.exercises.length}
-              </p>
-              <h2 lang="it">{exercise.prompt}</h2>
-              <div className="practice-options">
-                {exercise.options.map((option, index) => (
-                  <button
-                    key={index}
-                    className={selected === index ? 'selected' : ''}
-                    type="button"
-                    disabled={Boolean(result)}
-                    onClick={() => setSelected(index)}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-              {result ? (
-                <div className="practice-result" role="status">
-                  <strong>{result.correct ? '✓ Верно' : '✕ Пока не так'}</strong>
-                  <p>
-                    Правильный ответ: <b lang="it">{result.answer}</b>. {result.explanation}
-                  </p>
-                  <div className="practice-actions">
-                    <button
-                      className="primary-button form-action"
-                      type="button"
-                      onClick={() => {
-                        setExerciseIndex((current) => current + 1);
-                        setSelected(null);
-                        setResult(null);
-                      }}
-                    >
-                      {exerciseIndex + 1 === topic.exercises.length
-                        ? 'Завершить'
-                        : 'Следующее задание'}
-                    </button>
-                    <button
-                      className="text-button"
-                      type="button"
-                      onClick={() => {
-                        setTab('theory');
-                        theoryTabRef.current?.focus();
-                      }}
-                    >
-                      Посмотреть правило
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  className="primary-button form-action"
-                  type="button"
-                  disabled={selected === null || pending}
-                  onClick={() => void check()}
-                >
-                  {pending ? 'Проверяем…' : 'Проверить'}
-                </button>
-              )}
-            </>
-          )}
+          {tab === 'practice' && <GrammarPractice key={topic.id} topic={topic} />}
         </div>
       </>
     </>

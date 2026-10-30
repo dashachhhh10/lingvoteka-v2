@@ -113,6 +113,7 @@ export class GrammarController {
         title: true,
         summary: true,
         theoryStatus: true,
+        practiceStatus: true,
         _count: { select: { exercises: true, materials: true } },
       },
     });
@@ -132,9 +133,13 @@ export class GrammarController {
     const existing = await prisma.grammarTopic.findUnique({
       where: { ownerId_normalized: { ownerId, normalized } },
     });
-    if (existing) return existing;
+    if (existing)
+      return prisma.grammarTopic.update({
+        where: { id: existing.id },
+        data: { manuallyAdded: true },
+      });
     return prisma.grammarTopic.create({
-      data: { ownerId, title, normalized, summary: summary || null },
+      data: { ownerId, title, normalized, summary: summary || null, manuallyAdded: true },
       select: { id: true, title: true, summary: true },
     });
   }
@@ -168,7 +173,7 @@ export class GrammarController {
   }
 
   @Post(':id/generate')
-  @ApiOperation({ summary: 'Поставить создание объяснения и упражнений в фоновую очередь' })
+  @ApiOperation({ summary: 'Поставить создание объяснения в фоновую очередь' })
   @ApiParam({ name: 'id', description: 'ID темы' })
   @ApiCreatedResponse({ type: GrammarDetailDto })
   @ApiBadRequestResponse({ description: 'Теория уже создана или создаётся' })
@@ -196,6 +201,38 @@ export class GrammarController {
         },
       });
       throw new ServiceUnavailableException('Не удалось начать генерацию. Попробуй ещё раз.');
+    }
+    return this.topic(id, ownerId);
+  }
+
+  @Post(':id/practice')
+  @ApiOperation({
+    summary: 'Начать подготовку заданий независимо от теории; повторный вызов безопасен',
+  })
+  @ApiParam({ name: 'id', description: 'ID своей темы' })
+  @ApiCreatedResponse({ type: GrammarDetailDto })
+  @ApiNotFoundResponse({ description: 'Тема не принадлежит текущему пользователю' })
+  async preparePractice(@Req() request: Request, @Param('id') id: string) {
+    const ownerId = await this.ownerId(request);
+    const topic = await this.topic(id, ownerId);
+    if (topic.exercises.length || topic.practiceStatus === 'GENERATING') return topic;
+    const claimed = await prisma.grammarTopic.updateMany({
+      where: { id, ownerId, practiceStatus: { in: ['NOT_GENERATED', 'ERROR', 'READY'] } },
+      data: { practiceStatus: 'GENERATING', practiceError: null },
+    });
+    if (!claimed.count) return this.topic(id, ownerId);
+    try {
+      await this.queue.enqueueGrammar(id, 'practice');
+    } catch (error) {
+      console.error('Could not queue grammar practice', { topicId: id, error });
+      await prisma.grammarTopic.updateMany({
+        where: { id, ownerId, practiceStatus: 'GENERATING' },
+        data: {
+          practiceStatus: 'ERROR',
+          practiceError: 'Не удалось подготовить задания. Попробуй ещё раз.',
+        },
+      });
+      throw new ServiceUnavailableException('Не удалось подготовить задания. Попробуй ещё раз.');
     }
     return this.topic(id, ownerId);
   }

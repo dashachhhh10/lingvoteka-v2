@@ -117,6 +117,7 @@ model MaterialFile {
 }
 
 model VocabItem {
+  manuallyAdded     Boolean         @default(false)
   id                String          @id @default(cuid())
   ownerId           String
   owner             User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -139,19 +140,22 @@ model VocabItem {
 }
 
 model GrammarTopic {
-  id           String            @id @default(cuid())
-  ownerId      String
-  owner        User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  title        String
-  normalized   String
-  summary      String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  materials    MaterialGrammar[]
-  theory       Json?
-  theoryStatus String            @default("NOT_GENERATED")
-  theoryError  String?
-  exercises    GrammarExercise[]
+  manuallyAdded  Boolean           @default(false)
+  id             String            @id @default(cuid())
+  ownerId        String
+  owner          User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title          String
+  normalized     String
+  summary        String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  materials      MaterialGrammar[]
+  theory         Json?
+  theoryStatus   String            @default("NOT_GENERATED")
+  theoryError    String?
+  practiceStatus String            @default("NOT_GENERATED")
+  practiceError  String?
+  exercises      GrammarExercise[]
 
   @@unique([ownerId, normalized])
 }
@@ -299,4 +303,15 @@ model TelegramBotProfile {
   botId      String   @id
   avatarHash String
   updatedAt  DateTime @updatedAt
+}
+
+// Transactional outbox: file deletion survives API/worker restarts and S3 errors.
+model FileDeletion {
+  id         String   @id @default(cuid())
+  storageKey String   @unique
+  attempts   Int      @default(0)
+  retryAt    DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([retryAt])
 }

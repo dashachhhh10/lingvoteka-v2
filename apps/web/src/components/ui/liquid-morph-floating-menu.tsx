@@ -7,6 +7,7 @@ export const navigation = [
   { to: '/materials', label: 'Материалы', end: false },
   { to: '/vocabulary', label: 'Словарь', end: false },
   { to: '/review', label: 'Карточки', end: false },
+  { to: '/practice', label: 'Практика', end: false },
   { to: '/grammar', label: 'Грамматика', end: false },
   { to: '/profile', label: 'Профиль', end: false },
 ];

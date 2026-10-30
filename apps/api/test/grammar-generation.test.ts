@@ -25,17 +25,33 @@ function answer(formation: string) {
 
 async function withGeminiReplies(
   replies: unknown[],
-  run: (requests: Array<{ prompt: string }>) => Promise<void>,
+  run: (
+    requests: Array<{
+      prompt: string;
+      schema: { required: string[]; properties: Record<string, unknown> };
+    }>,
+  ) => Promise<void>,
 ) {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.GEMINI_API_KEY;
   const originalBaseUrl = process.env.GEMINI_API_BASE_URL;
-  const requests: Array<{ prompt: string }> = [];
+  const requests: Array<{
+    prompt: string;
+    schema: { required: string[]; properties: Record<string, unknown> };
+  }> = [];
   process.env.GEMINI_API_KEY = 'synthetic-test-key';
   process.env.GEMINI_API_BASE_URL = 'https://gemini.invalid';
   globalThis.fetch = async (_input, init) => {
-    const body = JSON.parse(String(init?.body)) as { contents: { parts: { text: string }[] }[] };
-    requests.push({ prompt: body.contents[0].parts[0].text });
+    const body = JSON.parse(String(init?.body)) as {
+      contents: { parts: { text: string }[] }[];
+      generationConfig: {
+        responseSchema: { required: string[]; properties: Record<string, unknown> };
+      };
+    };
+    requests.push({
+      prompt: body.contents[0].parts[0].text,
+      schema: body.generationConfig.responseSchema,
+    });
     const reply = replies[requests.length - 1];
     if (!reply) throw new Error('Unexpected extra AI request');
     return new Response(
@@ -205,5 +221,33 @@ test('drops a mistake that calls the same written form correct and incorrect', a
   await withGeminiReplies([reply], async () => {
     const result = await generateGrammarContent(areTopic);
     assert.deepEqual(result.theory.mistakes, ['Для io у parlare нужно parlo, а не parli.']);
+  });
+});
+
+test('practice generates only exercises and does not require a theory payload', async () => {
+  await withGeminiReplies([{ exercises: areAnswer().exercises }], async (requests) => {
+    const result = await generateGrammarContent(areTopic, 'practice');
+    assert.equal(result.exercises.length, 4);
+    assert.equal(result.theory.when, '');
+    assert.deepEqual(requests[0].schema.required, ['exercises']);
+    assert.equal(requests[0].schema.properties.theory, undefined);
+  });
+});
+
+test('theory generation does not require or accept exercise output', async () => {
+  await withGeminiReplies(
+    [{ theory: areAnswer().theory, exercises: areAnswer().exercises }],
+    async (requests) => {
+      const result = await generateGrammarContent(areTopic, 'theory');
+      assert.equal(result.exercises.length, 0);
+      assert.equal(result.theory.when, areAnswer().theory.when);
+      assert.deepEqual(requests[0].schema.required, ['theory']);
+    },
+  );
+});
+
+test('practice rejects a partial or repeated exercise set', async () => {
+  await withGeminiReplies([{ exercises: [areAnswer().exercises[0]] }], async () => {
+    await assert.rejects(generateGrammarContent(areTopic, 'practice'), /неполный учебный материал/);
   });
 });

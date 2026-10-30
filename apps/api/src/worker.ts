@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import type { JobWithMetadata } from 'pg-boss';
+import { processFileDeletions } from './file-cleanup.js';
 import { prisma } from './database.js';
 import { validateFileStorage } from './file-storage.js';
 import { processMaterialAnalysis } from './material-analysis-job.js';
@@ -8,6 +9,7 @@ import {
   enqueueGrammarGeneration,
   ensureGrammarQueue,
   GRAMMAR_GENERATION_QUEUE,
+  type GrammarGenerationMode,
 } from './grammar-queue.js';
 import {
   failVocabularyClassification,
@@ -26,7 +28,7 @@ import {
 } from './material-queue.js';
 
 type MaterialJob = { materialId: string };
-type GrammarJob = { topicId: string };
+type GrammarJob = { topicId: string; mode?: GrammarGenerationMode };
 type VocabularyJob = { ownerId: string };
 
 const boss = createBoss();
@@ -60,6 +62,12 @@ async function reconcileGeneratingGrammar(): Promise<void> {
     take: 100,
   });
   for (const topic of topics) await enqueueGrammarGeneration(boss, topic.id);
+  const practiceTopics = await prisma.grammarTopic.findMany({
+    where: { practiceStatus: 'GENERATING' },
+    select: { id: true },
+    take: 100,
+  });
+  for (const topic of practiceTopics) await enqueueGrammarGeneration(boss, topic.id, 'practice');
 }
 
 async function shutdown(): Promise<void> {
@@ -113,9 +121,11 @@ async function main(): Promise<void> {
     async ([job]: JobWithMetadata<GrammarJob>[]) => {
       if (!job) return;
       try {
-        await processGrammarGeneration(job.data.topicId);
+        await processGrammarGeneration(job.data.topicId, job.data.mode ?? 'theory');
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Не удалось создать объяснение';
+        const practice = job.data.mode === 'practice';
+        const message =
+          error instanceof Error ? error.message : 'Не удалось подготовить учебный материал';
         const permanent = message.startsWith('AI не настроен');
         const finalAttempt = job.retryCount >= job.retryLimit;
         console.error('Grammar generation failed', {
@@ -125,13 +135,23 @@ async function main(): Promise<void> {
         });
         if (permanent || finalAttempt) {
           await prisma.grammarTopic.updateMany({
-            where: { id: job.data.topicId, theoryStatus: 'GENERATING' },
-            data: {
-              theoryStatus: 'ERROR',
-              theoryError: permanent
-                ? message.slice(0, 300)
-                : 'Не удалось создать объяснение. Попробуй ещё раз.',
+            where: {
+              id: job.data.topicId,
+              [practice ? 'practiceStatus' : 'theoryStatus']: 'GENERATING',
             },
+            data: practice
+              ? {
+                  practiceStatus: 'ERROR',
+                  practiceError: permanent
+                    ? message.slice(0, 300)
+                    : 'Не удалось подготовить задания. Попробуй ещё раз.',
+                }
+              : {
+                  theoryStatus: 'ERROR',
+                  theoryError: permanent
+                    ? message.slice(0, 300)
+                    : 'Не удалось создать объяснение. Попробуй ещё раз.',
+                },
           });
         }
         if (!permanent) throw error;
@@ -159,10 +179,14 @@ async function main(): Promise<void> {
       }
     },
   );
+  await processFileDeletions();
   await reconcileProcessingMaterials();
   await reconcileGeneratingGrammar();
   await reconcileVocabulary();
   reconciliationTimer = setInterval(() => {
+    void processFileDeletions().catch(() =>
+      console.error('Stored file cleanup reconciliation failed'),
+    );
     void reconcileProcessingMaterials().catch((error) =>
       console.error('Material job reconciliation failed', error),
     );

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from './api';
-import { ActionLink } from './components/ui/button';
+import { ActionLink, Button } from './components/ui/button';
 import { SelectField } from './components/ui/fields';
 import { StaggerList } from './Motion';
 import { partsOfSpeech, semanticTopics } from './vocabulary-categories';
@@ -16,8 +16,15 @@ type VocabDraft = {
   semanticTopic?: string;
   alreadyInVocabulary?: boolean;
   otherMeaningInVocabulary?: boolean;
+  existingTranslation?: string;
+  allowNewMeaning?: boolean;
 };
-type GrammarDraft = { title: string; summary: string; sourceExcerpt: string };
+type GrammarDraft = {
+  title: string;
+  summary: string;
+  sourceExcerpt: string;
+  alreadyInGrammar?: boolean;
+};
 type Draft = { vocabulary: VocabDraft[]; grammar: GrammarDraft[] };
 type MaterialListItem = {
   id: string;
@@ -63,6 +70,92 @@ const emptyVocab = (): VocabDraft => ({
   semanticTopic: '',
 });
 const emptyGrammar = (): GrammarDraft => ({ title: '', summary: '', sourceExcerpt: '' });
+
+function DeleteMaterialButton({
+  id,
+  title,
+  onDeleted,
+}: {
+  id: string;
+  title: string;
+  onDeleted?: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const headingId = useId();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+  async function remove() {
+    if (pending) return;
+    setPending(true);
+    setError('');
+    try {
+      await api(`/api/materials/${id}`, { method: 'DELETE' });
+      try {
+        localStorage.removeItem(`lingvoteka-draft-${id}`);
+      } catch {
+        /* Optional draft cache. */
+      }
+      dialog.current?.close();
+      onDeleted?.();
+      void Promise.all(
+        ['materials', 'vocabulary', 'grammar', 'reviews'].map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Не удалось удалить материал');
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <>
+      <Button
+        variant="ghost"
+        className="shrink-0"
+        aria-label={`Удалить материал: ${title}`}
+        onClick={() => {
+          setError('');
+          dialog.current?.showModal();
+        }}
+      >
+        Удалить
+      </Button>
+      <dialog
+        ref={dialog}
+        aria-labelledby={headingId}
+        onCancel={(event) => {
+          if (pending) event.preventDefault();
+        }}
+        className="m-auto max-h-[calc(100dvh-40px)] w-[calc(100%-40px)] max-w-lg overflow-y-auto rounded-3xl border border-line bg-surface p-6 text-ink backdrop:bg-black/40 sm:p-8"
+      >
+        <h2 id={headingId} className="m-0 text-2xl font-medium tracking-tight">
+          Удалить материал?
+        </h2>
+        <p className="mt-4 break-words font-medium">{title}</p>
+        <p className="text-sm leading-relaxed text-muted">
+          Удалим материал и его файлы, а также слова, карточки, темы и результаты, которые относятся
+          только к нему. Общие записи из других материалов и самостоятельные записи сохранятся.
+        </p>
+        <p className="text-sm text-muted">Отменить удаление не получится.</p>
+        {error && (
+          <p role="alert" className="form-message error">
+            {error}
+          </p>
+        )}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button variant="secondary" disabled={pending} onClick={() => dialog.current?.close()}>
+            Оставить материал
+          </Button>
+          <Button disabled={pending} onClick={() => void remove()}>
+            {pending ? 'Удаляем…' : 'Удалить материал'}
+          </Button>
+        </div>
+      </dialog>
+    </>
+  );
+}
 
 export function MaterialsPage() {
   const {
@@ -111,26 +204,30 @@ export function MaterialsPage() {
       ) : (
         <StaggerList className="material-list">
           {items.map((item) => (
-            <Link key={item.id} className="material-row" to={`/materials/${item.id}`}>
-              <span>
-                <strong>{item.title}</strong>
-                <small>
-                  {formatDate(item.lessonDate) ?? formatDate(item.createdAt)} · {item._count.files}{' '}
-                  файлов · {item._count.vocabulary} слов · {item._count.grammar} тем
-                </small>
-              </span>
-              <span className="material-status">
-                {item.status === 'READY'
-                  ? 'Сохранён'
-                  : item.status === 'REVIEW'
-                    ? 'Проверить'
-                    : item.status === 'PROCESSING'
-                      ? 'Разбираем'
-                      : item.status === 'ERROR'
-                        ? 'Ошибка разбора'
-                        : 'Черновик'}
-              </span>
-            </Link>
+            <article key={item.id} className="flex items-center gap-2 border-b border-line">
+              <Link className="material-row min-w-0 flex-1 !border-0" to={`/materials/${item.id}`}>
+                <span>
+                  <strong>{item.title}</strong>
+                  <small>
+                    {formatDate(item.lessonDate) ?? formatDate(item.createdAt)} ·{' '}
+                    {item._count.files} файлов · {item._count.vocabulary} слов ·{' '}
+                    {item._count.grammar} тем
+                  </small>
+                </span>
+                <span className="material-status">
+                  {item.status === 'READY'
+                    ? 'Сохранён'
+                    : item.status === 'REVIEW'
+                      ? 'Проверить'
+                      : item.status === 'PROCESSING'
+                        ? 'Разбираем'
+                        : item.status === 'ERROR'
+                          ? 'Ошибка разбора'
+                          : 'Черновик'}
+                </span>
+              </Link>
+              <DeleteMaterialButton id={item.id} title={item.title} />
+            </article>
           ))}
         </StaggerList>
       )}
@@ -307,6 +404,16 @@ export function MaterialDetailPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const knownVocabulary = useQuery({
+    queryKey: ['vocabulary'],
+    queryFn: () => api<{ term: string; translation: string }[]>('/api/vocabulary'),
+    enabled: Boolean(material && material.status !== 'READY'),
+  });
+  const knownGrammar = useQuery({
+    queryKey: ['grammar'],
+    queryFn: () => api<{ title: string }[]>('/api/grammar'),
+    enabled: Boolean(material && material.status !== 'READY'),
+  });
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -442,11 +549,45 @@ export function MaterialDetailPage() {
       </>
     );
   const editable = material.status !== 'READY';
+  const normalized = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('it');
+  const displayedVocabulary = vocabulary.map((item) => {
+    if (!knownVocabulary.data) return item;
+    const matches = knownVocabulary.data.filter(
+      (word) => normalized(word.term) === normalized(item.term),
+    );
+    const exact = matches.find(
+      (word) => normalized(word.translation) === normalized(item.translation),
+    );
+    return {
+      ...item,
+      alreadyInVocabulary: Boolean(exact),
+      otherMeaningInVocabulary: !exact && matches.length > 0,
+      existingTranslation: (exact ?? matches[0])?.translation,
+    };
+  });
+  const displayedGrammar = grammar.map((item) =>
+    knownGrammar.data
+      ? {
+          ...item,
+          alreadyInGrammar: knownGrammar.data.some(
+            (topic) => normalized(topic.title) === normalized(item.title),
+          ),
+        }
+      : item,
+  );
+
   return (
     <>
-      <Link className="back-link" to="/materials">
-        ← Все материалы
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link className="back-link" to="/materials">
+          ← Все материалы
+        </Link>
+        <DeleteMaterialButton
+          id={material.id}
+          title={material.title}
+          onDeleted={() => navigate('/materials', { replace: true })}
+        />
+      </div>
       <p className="eyebrow">МАТЕРИАЛ</p>
       <h1 className="page-title">{material.title}</h1>
       {(material.lessonDate || material.deadline) && (
@@ -520,7 +661,7 @@ export function MaterialDetailPage() {
                 + Добавить слово
               </button>
             </div>
-            {vocabulary.map((item, index) => (
+            {displayedVocabulary.map((item, index) => (
               <div className="review-item" key={index}>
                 {item.alreadyInVocabulary && (
                   <p className="source-excerpt">
@@ -528,10 +669,28 @@ export function MaterialDetailPage() {
                   </p>
                 )}
                 {item.otherMeaningInVocabulary && !item.alreadyInVocabulary && (
-                  <p className="source-excerpt">
-                    Это написание уже есть с другим переводом. Сохраним отдельное значение и
-                    карточку.
-                  </p>
+                  <div className="mb-4 rounded-2xl border border-line bg-olive-soft p-4 text-sm">
+                    <p className="mt-0">
+                      Слово уже есть в словаре
+                      {item.existingTranslation ? `: «${item.existingTranslation}»` : ''}. По
+                      умолчанию свяжем с ним этот материал, без второй карточки.
+                    </p>
+                    <label className="!flex min-h-11 cursor-pointer items-center gap-3 !font-normal">
+                      <input
+                        className="!m-0 !size-4 !min-h-0 shrink-0 !rounded !p-0 accent-[var(--action)]"
+                        type="checkbox"
+                        checked={item.allowNewMeaning ?? false}
+                        onChange={(event) =>
+                          setVocabulary((items) =>
+                            items.map((row, i) =>
+                              i === index ? { ...row, allowNewMeaning: event.target.checked } : row,
+                            ),
+                          )
+                        }
+                      />
+                      Сохранить как новое значение
+                    </label>
+                  </div>
                 )}
                 <div className="form-columns">
                   <label>
@@ -547,6 +706,8 @@ export function MaterialDetailPage() {
                                   term: event.target.value,
                                   alreadyInVocabulary: false,
                                   otherMeaningInVocabulary: false,
+                                  allowNewMeaning: false,
+                                  existingTranslation: undefined,
                                 }
                               : row,
                           ),
@@ -567,6 +728,8 @@ export function MaterialDetailPage() {
                                   translation: event.target.value,
                                   alreadyInVocabulary: false,
                                   otherMeaningInVocabulary: false,
+                                  allowNewMeaning: false,
+                                  existingTranslation: undefined,
                                 }
                               : row,
                           ),
@@ -652,8 +815,14 @@ export function MaterialDetailPage() {
                 + Добавить тему
               </button>
             </div>
-            {grammar.map((item, index) => (
+            {displayedGrammar.map((item, index) => (
               <div className="review-item" key={index}>
+                {item.alreadyInGrammar && (
+                  <p className="source-excerpt">
+                    Тема уже есть: добавим этот материал как источник, без второй темы и потери
+                    прогресса.
+                  </p>
+                )}
                 <label>
                   Название
                   <input
@@ -661,7 +830,9 @@ export function MaterialDetailPage() {
                     onChange={(event) =>
                       setGrammar((items) =>
                         items.map((row, i) =>
-                          i === index ? { ...row, title: event.target.value } : row,
+                          i === index
+                            ? { ...row, title: event.target.value, alreadyInGrammar: false }
+                            : row,
                         ),
                       )
                     }

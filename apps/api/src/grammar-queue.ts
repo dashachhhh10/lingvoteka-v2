@@ -1,5 +1,7 @@
 import type { PgBoss } from 'pg-boss';
 
+export type GrammarGenerationMode = 'theory' | 'practice';
+
 export const GRAMMAR_GENERATION_QUEUE = 'grammar-generation';
 
 export async function ensureGrammarQueue(boss: PgBoss): Promise<void> {
@@ -13,6 +15,14 @@ export async function ensureGrammarQueue(boss: PgBoss): Promise<void> {
   });
 }
 
-export async function enqueueGrammarGeneration(boss: PgBoss, topicId: string) {
-  return boss.send(GRAMMAR_GENERATION_QUEUE, { topicId }, { singletonKey: topicId });
+export async function enqueueGrammarGeneration(
+  boss: PgBoss,
+  topicId: string,
+  mode: GrammarGenerationMode = 'theory',
+) {
+  return boss.send(
+    GRAMMAR_GENERATION_QUEUE,
+    { topicId, mode },
+    { singletonKey: mode === 'theory' ? topicId : `practice:${topicId}` },
+  );
 }

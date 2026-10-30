@@ -1,6 +1,6 @@
 import { prisma } from './database.js';
 import { analyzeMaterial } from './material-analysis.js';
-import { normaliseTerm, vocabularyIdentity } from './vocabulary-identity.js';
+import { annotateDraft } from './draft-matches.js';
 
 export async function processMaterialAnalysis(materialId: string): Promise<void> {
   const material = await prisma.material.findUnique({
@@ -9,28 +9,18 @@ export async function processMaterialAnalysis(materialId: string): Promise<void>
   });
   if (!material || material.status !== 'PROCESSING') return;
 
-  const draft = await analyzeMaterial(material.noteText, material.files);
-  const known = await prisma.vocabItem.findMany({
-    where: {
-      ownerId: material.ownerId,
-      normalized: { in: draft.vocabulary.map((item) => normaliseTerm(item.term)) },
-    },
-    select: { normalized: true, normalizedMeaning: true },
+  const knownTopics = await prisma.grammarTopic.findMany({
+    where: { ownerId: material.ownerId },
+    select: { title: true },
+    orderBy: { title: 'asc' },
+    take: 300,
   });
-  const knownTerms = new Set(known.map((item) => item.normalized));
-  const knownIdentities = new Set(
-    known.map((item) => `${item.normalized}\u0000${item.normalizedMeaning}`),
+  const extracted = await analyzeMaterial(
+    material.noteText,
+    material.files,
+    knownTopics.map((topic) => topic.title),
   );
-  draft.vocabulary = draft.vocabulary.map((item) => {
-    const alreadyInVocabulary = knownIdentities.has(
-      vocabularyIdentity(item.term, item.translation),
-    );
-    return {
-      ...item,
-      alreadyInVocabulary,
-      otherMeaningInVocabulary: !alreadyInVocabulary && knownTerms.has(normaliseTerm(item.term)),
-    };
-  });
+  const draft = await annotateDraft(material.ownerId, extracted);
   await prisma.material.updateMany({
     where: { id: materialId, status: 'PROCESSING' },
     data: { status: 'REVIEW', analysisDraft: draft, analysisError: null },
