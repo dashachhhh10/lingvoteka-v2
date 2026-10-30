@@ -31,7 +31,6 @@ type QueueCard = {
   translation: string;
   example: string | null;
   kind: 'new' | 'due' | 'practice';
-  reinforcement?: boolean;
 };
 type Queue = { dueCount: number; newCount: number; cards: QueueCard[] };
 const wordCount = (count: number) =>
@@ -325,6 +324,7 @@ export function ReviewPage() {
   const [revealed, setRevealed] = useState(false);
   const [pending, setPending] = useState(false);
   const ratingLock = useRef(false);
+  const completeHeadingRef = useRef<HTMLHeadingElement>(null);
   const cardMotionRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -345,6 +345,10 @@ export function ReviewPage() {
   const vocabularyQuery = useQuery({
     queryKey: ['vocabulary'],
     queryFn: () => api<VocabItem[]>('/api/vocabulary'),
+  });
+  const deferredQuery = useQuery({
+    queryKey: ['reviews', 'deferred'],
+    queryFn: () => api<{ cards: QueueCard[] }>('/api/reviews/deferred'),
   });
   const practiceCategories = useMemo(() => {
     const items = vocabularyQuery.data ?? [];
@@ -402,6 +406,26 @@ export function ReviewPage() {
     };
   }, [queueAttempt, materialId]);
   const card = queue?.cards[index];
+  useEffect(() => {
+    if (queue && index >= queue.cards.length) completeHeadingRef.current?.focus();
+  }, [queue, index]);
+  async function startDeferredPractice() {
+    if (pending) return;
+    setPending(true);
+    setError('');
+    try {
+      const result = await deferredQuery.refetch({ throwOnError: true });
+      setMode('practice');
+      setQueue({ dueCount: 0, newCount: 0, cards: result.data?.cards ?? [] });
+      setIndex(0);
+      setRevealed(false);
+      setShowPracticePicker(false);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Не удалось открыть сложные слова');
+    } finally {
+      setPending(false);
+    }
+  }
   async function startPractice() {
     if (pending) return;
     setPending(true);
@@ -455,7 +479,7 @@ export function ReviewPage() {
       });
     });
     try {
-      const scheduledRating = mode === 'scheduled' && !card.reinforcement;
+      const scheduledRating = mode === 'scheduled';
       const result = await Promise.allSettled([
         exit,
         scheduledRating
@@ -464,20 +488,19 @@ export function ReviewPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ rating }),
             })
-          : Promise.resolve(),
+          : api(`/api/reviews/${card.id}/practice`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rating }),
+            }),
       ]);
       if (result[1].status === 'rejected') throw result[1].reason;
-      if (scheduledRating)
-        void Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['reviews'] }),
-          queryClient.invalidateQueries({ queryKey: ['vocabulary'] }),
-        ]);
-      if (rating <= 2)
-        setQueue((current) =>
-          current
-            ? { ...current, cards: [...current.cards, { ...card, reinforcement: true }] }
-            : current,
-        );
+      queryClient.setQueryData<{ cards: QueueCard[] }>(['reviews', 'deferred'], (current) => {
+        const remaining = (current?.cards ?? []).filter((item) => item.id !== card.id);
+        return { cards: rating <= 2 ? [{ ...card, kind: 'practice' }, ...remaining] : remaining };
+      });
+      void queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      if (scheduledRating) void queryClient.invalidateQueries({ queryKey: ['vocabulary'] });
       setRevealed(false);
       setIndex((current) => current + 1);
     } catch (reason) {
@@ -619,12 +642,89 @@ export function ReviewPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+  const deferredFolder = (
+    <section
+      className="mt-8 rounded-3xl border border-line bg-surface p-5 sm:p-7"
+      aria-labelledby="deferred-title"
+    >
+      <div className="flex items-center gap-3">
+        <svg
+          className="h-6 w-6 shrink-0 text-olive"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden="true"
+        >
+          <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3V7Z" strokeLinejoin="round" />
+        </svg>
+        <h2 id="deferred-title" className="m-0 text-xl font-semibold tracking-tight">
+          Сложные слова
+        </h2>
+        {deferredQuery.data && (
+          <span className="ml-auto shrink-0 text-sm text-muted">
+            {wordCount(deferredQuery.data.cards.length)}
+          </span>
+        )}
+      </div>
+      <p className="mb-5 mt-3 text-sm leading-relaxed text-muted">
+        «Не знаю» и «Трудно» сохраняются здесь. Повтори сейчас или вернись позже. «Хорошо» и «Легко»
+        убирают слово из папки.
+      </p>
+      {deferredQuery.isPending ? (
+        <p className="text-sm text-muted" role="status">
+          Загружаем папку…
+        </p>
+      ) : deferredQuery.isError ? (
+        <div role="alert">
+          <p className="text-sm text-muted">Не удалось загрузить сложные слова.</p>
+          <Button variant="secondary" onClick={() => void deferredQuery.refetch()}>
+            Попробовать снова
+          </Button>
+        </div>
+      ) : deferredQuery.data?.cards.length ? (
+        <>
+          <details className="mb-5 text-sm">
+            <summary className="cursor-pointer text-olive underline underline-offset-4">
+              Посмотреть слова
+            </summary>
+            <ul
+              className="mb-0 mt-3 max-h-48 list-none overflow-y-auto p-0"
+              aria-label="Слова в папке"
+            >
+              {deferredQuery.data.cards.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex flex-wrap justify-between gap-x-5 gap-y-1 border-t border-line py-3 text-sm"
+                >
+                  <span className="min-w-0 break-words font-medium" lang="it">
+                    {item.term}
+                  </span>
+                  <span className="min-w-0 break-words text-muted">{item.translation}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+          <Button
+            disabled={pending || deferredQuery.isFetching}
+            onClick={() => void startDeferredPractice()}
+          >
+            Повторить папку
+          </Button>
+        </>
+      ) : (
+        <p className="text-sm text-muted">
+          Папка пока пустая. Сложные слова появятся здесь после оценки.
+        </p>
+      )}
+    </section>
+  );
   const practicePicker = (
     <section className="mt-8 rounded-3xl border border-line bg-surface p-5 sm:p-7">
       <h2 className="m-0 text-xl font-semibold tracking-tight">Повторить слова в любое время</h2>
       <p className="mb-5 mt-2 text-sm leading-relaxed text-muted">
-        Здесь доступны все слова, даже если их срок ещё не подошёл. Свободная практика не меняет
-        расписание повторений.
+        Выбери любую тему или материал, даже если срок повторения ещё не подошёл. Расписание не
+        изменится.
       </p>
       <label className="mb-2 block text-sm font-medium" htmlFor="practice-topic">
         Тема, часть речи или материал
@@ -693,7 +793,7 @@ export function ReviewPage() {
               className="text-sm font-medium text-olive underline underline-offset-4"
               onClick={() => setShowPracticePicker((current) => !current)}
             >
-              {showPracticePicker ? 'Скрыть выбор' : 'Выбрать слова'}
+              {showPracticePicker ? 'Скрыть выбор' : 'Папка и выбор слов'}
             </button>
           )}
         </div>
@@ -707,7 +807,12 @@ export function ReviewPage() {
             </Link>
           </div>
         )}
-        {card && showPracticePicker && practicePicker}
+        {card && showPracticePicker && (
+          <>
+            {deferredFolder}
+            {practicePicker}
+          </>
+        )}
         {error && (
           <p className="form-message error" role="alert">
             {error}
@@ -729,8 +834,12 @@ export function ReviewPage() {
             <p className="subtle">Подбираем карточки…</p>
           )
         ) : !card ? (
-          <div className="review-complete">
-            <h1>
+          <div className="py-6 sm:py-8">
+            <h1
+              ref={completeHeadingRef}
+              tabIndex={-1}
+              className="m-0 text-3xl tracking-tight sm:text-4xl"
+            >
               {mode === 'practice'
                 ? queue.cards.length
                   ? 'Практика закончена'
@@ -745,23 +854,24 @@ export function ReviewPage() {
                         : 'По плану пока нет карточек'
                       : 'В словаре пока нет слов'}
             </h1>
-            <p>
+            <p className="mb-0 mt-3 text-sm leading-relaxed text-muted">
               {mode === 'practice'
-                ? 'Можно выбрать другую группу слов или пройти эту ещё раз.'
+                ? 'Эта очередь пройдена один раз. Сложные слова сохранены в папке ниже. Выбери, что повторить дальше, или закончи занятие.'
                 : queue.cards.length
-                  ? 'Слова, которые было трудно вспомнить, ты повторила ещё раз. Следующий срок рассчитан по FSRS.'
+                  ? 'Основная очередь пройдена. Сложные слова сохранены отдельно — повтори их сейчас или вернись позже.'
                   : vocabularyQuery.isPending
                     ? 'Загружаем темы и слова для свободной практики.'
                     : vocabularyQuery.data?.length
                       ? 'Выбери тему или материал и потренируй слова сейчас, не дожидаясь следующего срока.'
                       : 'Добавь материал или слово в словарь, чтобы появились карточки.'}
             </p>
+            {deferredFolder}
+            {practicePicker}
             {mode === 'practice' && (
               <Button variant="secondary" onClick={startScheduled}>
                 Вернуться к плану
               </Button>
             )}
-            {practicePicker}
             <Link
               className="mt-6 inline-block text-sm text-muted underline underline-offset-4"
               to="/"
@@ -776,13 +886,11 @@ export function ReviewPage() {
                 {index + 1} / {queue.cards.length}
               </span>
               <span>
-                {card.reinforcement
-                  ? 'Ещё одна попытка'
-                  : card.kind === 'practice'
-                    ? 'Свободная практика'
-                    : card.kind === 'new'
-                      ? 'Новое слово'
-                      : 'Повторение'}
+                {card.kind === 'practice'
+                  ? 'Свободная практика'
+                  : card.kind === 'new'
+                    ? 'Новое слово'
+                    : 'Повторение'}
               </span>
             </div>
             <div className="flashcard-motion" key={`${card.id}-${index}`} ref={cardMotionRef}>
@@ -829,10 +937,10 @@ export function ReviewPage() {
             </div>
             {revealed ? (
               <div className="rating-area">
-                <p>Смахни любую сторону ← «не помню» или «помню» →. Можно выбрать точную оценку:</p>
+                <p>Смахни любую сторону ← «не знаю» или «помню» →. Можно выбрать точную оценку:</p>
                 <div className="rating-buttons">
                   <button type="button" disabled={pending} onClick={() => void rate(1)}>
-                    <kbd>1</kbd> Не помню
+                    <kbd>1</kbd> Не знаю
                   </button>
                   <button type="button" disabled={pending} onClick={() => void rate(2)}>
                     <kbd>2</kbd> Трудно

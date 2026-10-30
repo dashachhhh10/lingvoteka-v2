@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lingvoteka · Предложение экрана практики</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f8f8f2;
+        --surface: #fffefa;
+        --ink: #273027;
+        --muted: #5d695e;
+        --line: #d8dfd4;
+        --green: #4f6b54;
+        --soft: #e8f0e5;
+        --lemon: #f8f1da;
+        --action-ink: #fffefa;
+        --error: #a63e36;
+        font:
+          16px/1.5 'Avenir Next',
+          Avenir,
+          'Segoe UI',
+          system-ui,
+          sans-serif;
+      }
+      [data-theme='dark'] {
+        color-scheme: dark;
+        --bg: #171e19;
+        --surface: #222b23;
+        --ink: #f0f2e9;
+        --muted: #bac4b7;
+        --line: #3b493c;
+        --green: #b5d1a7;
+        --soft: #2e3e30;
+        --lemon: #3e3929;
+        --action-ink: #1b2b1d;
+        --error: #ffc1b7;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      button,
+      a {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        cursor: default;
+        opacity: 0.6;
+      }
+      button:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--green);
+        outline-offset: 4px;
+      }
+      button {
+        transition:
+          background 0.15s,
+          transform 0.15s;
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .bar {
+        border-bottom: 1px solid var(--line);
+        padding: 20px clamp(20px, 4vw, 64px);
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .logo {
+        font-size: 26px;
+        font-weight: 850;
+        letter-spacing: -1.5px;
+      }
+      .logo span {
+        color: #b79c44;
+      }
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .badge {
+        font-size: 12px;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        padding: 5px 10px;
+        border-radius: 30px;
+      }
+      .theme {
+        height: 42px;
+        width: 42px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 50%;
+        color: var(--ink);
+        background: var(--surface);
+      }
+      .theme svg {
+        width: 20px;
+        height: 20px;
+      }
+      main {
+        max-width: 1120px;
+        padding: 56px 28px 120px;
+        margin: auto;
+      }
+      .eyebrow {
+        font-size: 11px;
+        font-weight: 650;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--green);
+        margin: 0 0 15px;
+      }
+      h1 {
+        font-size: clamp(38px, 5vw, 58px);
+        line-height: 1.1;
+        font-weight: 550;
+        letter-spacing: -0.045em;
+        margin: 0 0 18px;
+      }
+      h2 {
+        font-size: 23px;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        line-height: 1.25;
+        margin: 0;
+      }
+      h3 {
+        font-size: 19px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+      .lead {
+        font-size: 17px;
+        color: var(--muted);
+        max-width: 620px;
+        margin: 0 0 36px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 28px;
+      }
+      .feature {
+        padding: 32px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        min-height: 335px;
+      }
+      .feature p {
+        color: var(--muted);
+        font-size: 15px;
+        max-width: 340px;
+      }
+      .icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: var(--lemon);
+        display: grid;
+        place-items: center;
+        margin-bottom: 28px;
+      }
+      .icon svg {
+        width: 23px;
+        height: 23px;
+        stroke: var(--ink);
+      }
+      .primary,
+      .secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        border: 1px solid transparent;
+        border-radius: 40px;
+        min-height: 46px;
+        padding: 11px 22px;
+        font-size: 14px;
+        font-weight: 550;
+      }
+      .primary {
+        background: var(--green);
+        color: var(--action-ink);
+      }
+      .secondary {
+        background: transparent;
+        color: var(--ink);
+        border-color: var(--line);
+      }
+      .feature .primary {
+        margin-top: auto;
+      }
+      .topics {
+        padding: 6px 0;
+      }
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .section-header span {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .topic {
+        border-top: 1px solid var(--line);
+        padding: 22px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+      }
+      .topic p {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 5px 0 0;
+      }
+      .topic button {
+        white-space: nowrap;
+      }
+      .note {
+        margin-top: 32px;
+        max-width: 650px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .back {
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        padding: 0;
+        margin-bottom: 30px;
+        font-size: 14px;
+      }
+      .exercise {
+        max-width: 720px;
+        margin: auto;
+      }
+      .progress {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        font-size: 13px;
+        color: var(--muted);
+        margin: 24px 0 12px;
+      }
+      .track {
+        height: 3px;
+        background: var(--line);
+        margin-bottom: 28px;
+      }
+      .track span {
+        display: block;
+        width: 20%;
+        height: 100%;
+        background: var(--green);
+      }
+      .question {
+        padding: 32px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        border-radius: 24px;
+      }
+      .question h2 {
+        font-size: 28px;
+        font-weight: 500;
+        margin: 20px 0 28px;
+      }
+      .answers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .answers button {
+        border: 1px solid var(--line);
+        padding: 12px 25px;
+        border-radius: 14px;
+        background: transparent;
+        color: var(--ink);
+        min-height: 48px;
+      }
+      .answers button[aria-pressed='true'] {
+        background: var(--soft);
+        border-color: var(--green);
+      }
+      .exercise-actions {
+        margin-top: 22px;
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .feedback {
+        margin-top: 22px;
+        padding: 18px;
+        border-radius: 14px;
+        background: var(--soft);
+        font-size: 15px;
+      }
+      .feedback[data-correct='false'] {
+        background: var(--lemon);
+      }
+      .help {
+        margin-top: 24px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .help summary {
+        cursor: pointer;
+        display: inline-block;
+        color: var(--green);
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+      .demo-note {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--line);
+        font-size: 12px;
+        text-align: center;
+        color: var(--muted);
+      }
+      .footer-nav {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 5px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        padding: 5px;
+        border-radius: 40px;
+        box-shadow: 0 8px 30px #00000009;
+        max-width: calc(100% - 32px);
+      }
+      .footer-nav button {
+        border: 0;
+        background: transparent;
+        padding: 10px 18px;
+        border-radius: 40px;
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .footer-nav button[aria-current='page'] {
+        background: var(--soft);
+        color: var(--ink);
+      }
+      .mock-card {
+        padding: 28px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--surface);
+        max-width: 600px;
+      }
+      .mock-card p {
+        color: var(--muted);
+      }
+      .result-count {
+        font-size: 52px;
+        letter-spacing: -0.05em;
+        margin: 20px 0;
+        color: var(--green);
+      }
+      @media (max-width: 720px) {
+        main {
+          padding: 34px 20px 120px;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+          gap: 30px;
+        }
+        .bar {
+          padding: 16px 20px;
+        }
+        .badge {
+          display: none;
+        }
+        .feature {
+          min-height: 280px;
+          padding: 24px;
+        }
+        .icon {
+          margin-bottom: 20px;
+        }
+        .question {
+          padding: 24px;
+        }
+        .question h2 {
+          font-size: 24px;
+        }
+        .topic .secondary {
+          padding: 10px 16px;
+        }
+        .footer-nav button {
+          padding: 10px 15px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="bar">
+      <div class="logo">Lingvoteka<span>.</span></div>
+      <div class="top-actions">
+        <span class="badge">Проект экрана</span
+        ><button class="theme" aria-label="Переключить тему" id="theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="4" />
+            <path
+              d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"
+            />
+          </svg>
+        </button>
+      </div>
+    </header>
+    <div class="demo-note">
+      Предложение для обсуждения · Примеры учебные, данные аккаунта не используются
+    </div>
+    <main>
+      <section id="hub">
+        <p class="eyebrow">От понимания — к уверенности</p>
+        <h1>Практика<span style="color: #b79c44">.</span></h1>
+        <p class="lead">
+          Выбери тему и начни с заданий. Объяснение всегда рядом, если понадобится.
+        </p>
+        <div class="grid">
+          <article class="feature">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                <path
+                  d="M5 5h14v15H5zM8 2v6m8-6v6M8 12h8m-8 4h5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <h2>Немного грамматики</h2>
+            <p>
+              Короткая тренировка по теме из твоих материалов. Начать можно сразу — предварительно
+              создавать объяснение не нужно.
+            </p>
+            <button class="primary" id="choose-topic">
+              Выбрать тему <span aria-hidden="true">↗</span>
+            </button>
+          </article>
+          <section class="topics" id="topics" aria-label="Грамматические темы" tabindex="-1">
+            <div class="section-header">
+              <h2>Твои темы</h2>
+              <span>Пример списка</span>
+            </div>
+            <article class="topic">
+              <div>
+                <h3>Артикли</h3>
+                <p>Определённые и неопределённые</p>
+              </div>
+              <button class="secondary" data-start="Артикли">Начать ↗</button>
+            </article>
+            <article class="topic">
+              <div>
+                <h3>Passato prossimo</h3>
+                <p>Essere или avere?</p>
+              </div>
+              <button class="secondary" data-start="Passato prossimo">Начать ↗</button>
+            </article>
+            <article class="topic">
+              <div>
+                <h3>Множественное число</h3>
+                <p>Окончания существительных</p>
+              </div>
+              <button class="secondary" data-start="Множественное число">Начать ↗</button>
+            </article>
+          </section>
+        </div>
+        <p class="note">
+          Карточки слов остаются отдельным режимом. В грамматике у каждой темы будут два явных
+          действия: «Теория» и «Тренироваться».
+        </p>
+      </section>
+      <section id="exercise" class="exercise" hidden>
+        <button class="back" data-view="hub">← К выбору темы</button>
+        <p class="eyebrow">Грамматическая практика</p>
+        <h1 id="exercise-title">Артикли</h1>
+        <div class="progress"><span>Пример задания</span><span>1 из 5</span></div>
+        <div class="track"><span></span></div>
+        <article class="question">
+          <p class="eyebrow">Выбери пропущенное слово</p>
+          <h2 id="question-text" lang="it">___ casa è grande.</h2>
+          <div class="answers" id="answers"></div>
+          <div class="feedback" id="feedback" role="status" hidden></div>
+          <details class="help">
+            <summary>Нужна подсказка?</summary>
+            <p id="hint-text">
+              Casa — существительное женского рода в единственном числе. Ему нужен артикль la.
+            </p>
+          </details>
+        </article>
+        <div class="exercise-actions">
+          <button class="secondary" data-view="hub">Закончить</button
+          ><button class="primary" id="check" disabled>Проверить ответ</button>
+        </div>
+        <p class="note">
+          В рабочей версии задания готовятся при старте. Теория — необязательная помощь, её создание
+          не меняет задания и результаты.
+        </p>
+      </section>
+      <section id="result" class="exercise" hidden>
+        <p class="eyebrow">Пример результата</p>
+        <h1>Ещё немного увереннее.</h1>
+        <p class="lead">
+          После короткой тренировки — результат и возможность отдельно вернуться к ошибкам.
+        </p>
+        <article class="mock-card">
+          <h2>Артикли</h2>
+          <div class="result-count">4 / 5</div>
+          <p>Одна ошибка — повод закрепить, а не начинать всё заново.</p>
+          <button class="primary" data-start="Артикли">Повторить ошибки ↗</button>
+        </article>
+        <div class="exercise-actions">
+          <button class="secondary" data-view="hub">Выбрать другую тему</button>
+        </div>
+        <p class="note">
+          Числа на этом экране иллюстрируют будущий итог, а не результат выполненного примера.
+        </p>
+      </section>
+      <section id="today" hidden>
+        <p class="eyebrow">Новый вход с главной</p>
+        <h1>Сегодня<span style="color: #b79c44">.</span></h1>
+        <p class="lead">Рядом с повторением слов появится заметный блок грамматической практики.</p>
+        <article class="mock-card">
+          <p class="eyebrow">От правил к речи</p>
+          <h2>Потренируем грамматику?</h2>
+          <p>Выбери тему из своих материалов и закрепи её в нескольких заданиях.</p>
+          <button class="primary" data-view="hub">Начать практику ↗</button>
+        </article>
+      </section>
+    </main>
+    <nav class="footer-nav" aria-label="Демонстрация входов в практику">
+      <button data-view="today">Сегодня</button
+      ><button data-view="hub" aria-current="page">Практика</button>
+    </nav>
+    <script>
+      const views = ['hub', 'exercise', 'result', 'today'];
+      let selected = '',
+        correct = 'la';
+      function show(view) {
+        for (const id of views) document.getElementById(id).hidden = id !== view;
+        for (const b of document.querySelectorAll('.footer-nav button'))
+          b.setAttribute('aria-current', b.dataset.view === view ? 'page' : 'false');
+        window.scrollTo({ top: 0 });
+        document.querySelector(`#${view} h1`).setAttribute('tabindex', '-1');
+        document.querySelector(`#${view} h1`).focus({ preventScroll: true });
+      }
+      for (const b of document.querySelectorAll('[data-view]'))
+        b.onclick = () => show(b.dataset.view);
+      const examples = {
+        Артикли: {
+          text: '___ casa è grande.',
+          answers: ['Il', 'La', 'Lo'],
+          correct: 'La',
+          hint: 'Casa — существительное женского рода в единственном числе. Ему нужен артикль la.',
+        },
+        'Passato prossimo': {
+          text: 'Ieri Maria ___ andata al cinema.',
+          answers: ['ha', 'è', 'sono'],
+          correct: 'è',
+          hint: 'Andare образует passato prossimo с essere. Maria è andata.',
+        },
+        'Множественное число': {
+          text: 'un libro → due ___',
+          answers: ['libri', 'libre', 'libra'],
+          correct: 'libri',
+          hint: 'У существительных мужского рода окончание -o обычно меняется на -i: libro → libri.',
+        },
+      };
+      for (const b of document.querySelectorAll('[data-start]'))
+        b.onclick = () => {
+          const topic = b.dataset.start,
+            e = examples[topic];
+          selected = '';
+          correct = e.correct;
+          document.getElementById('exercise-title').textContent = topic;
+          document.getElementById('question-text').textContent = e.text;
+          document.getElementById('hint-text').textContent = e.hint;
+          document.getElementById('feedback').hidden = true;
+          document.querySelector('.help').open = false;
+          const check = document.getElementById('check');
+          check.textContent = 'Проверить ответ';
+          check.disabled = true;
+          check.dataset.checked = '';
+          document.getElementById('answers').replaceChildren(
+            ...e.answers.map((answer) => {
+              const a = document.createElement('button');
+              a.type = 'button';
+              a.textContent = answer;
+              a.setAttribute('aria-pressed', 'false');
+              a.onclick = () => {
+                if (check.dataset.checked) return;
+                selected = answer;
+                for (const peer of a.parentElement.children)
+                  peer.setAttribute('aria-pressed', String(peer === a));
+                check.disabled = false;
+              };
+              return a;
+            }),
+          );
+          show('exercise');
+        };
+      document.getElementById('check').onclick = function () {
+        if (this.dataset.checked) {
+          show('result');
+          return;
+        }
+        this.dataset.checked = 'true';
+        const f = document.getElementById('feedback');
+        f.hidden = false;
+        f.dataset.correct = String(selected === correct);
+        f.textContent =
+          selected === correct
+            ? 'Верно. ' + document.getElementById('hint-text').textContent
+            : 'Правильный ответ: ' +
+              correct +
+              '. ' +
+              document.getElementById('hint-text').textContent;
+        this.textContent = 'Посмотреть пример итога';
+      };
+      document.getElementById('choose-topic').onclick = () => {
+        document.getElementById('topics').scrollIntoView({ block: 'center' });
+        document.getElementById('topics').focus({ preventScroll: true });
+      };
+      document.getElementById('theme').onclick = () => {
+        document.documentElement.dataset.theme =
+          document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      };
+    </script>
+  </body>
+</html>

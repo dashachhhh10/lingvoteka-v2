@@ -44,6 +44,24 @@ import {
 
 const scheduler = fsrs({ enable_fuzz: false });
 
+async function updateDeferredCard(
+  database: Pick<Prisma.TransactionClient, 'deferredCard'>,
+  userId: string,
+  flashcardId: string,
+  rating: number,
+) {
+  if (rating <= Rating.Hard) {
+    await database.deferredCard.upsert({
+      where: { userId_flashcardId: { userId, flashcardId } },
+      create: { userId, flashcardId, rating },
+      update: { rating },
+    });
+  } else {
+    await database.deferredCard.deleteMany({ where: { userId, flashcardId } });
+  }
+  return { deferred: rating <= Rating.Hard };
+}
+
 function parseCard(value: Prisma.JsonValue): Card {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new Error('Review card is corrupt');
@@ -285,6 +303,61 @@ export class StudyController {
     };
   }
 
+  @Get('reviews/deferred')
+  @ApiOperation({ summary: 'Сохранённая папка сложных слов для добровольной практики' })
+  @ApiOkResponse({ type: PracticeQueueDto })
+  async deferred(@Req() request: Request) {
+    const userId = await this.userId(request);
+    const saved = await prisma.deferredCard.findMany({
+      where: { userId, flashcard: { kind: 'IT_TO_RU', vocabItem: { ownerId: userId } } },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        flashcard: {
+          select: {
+            id: true,
+            vocabItem: { select: { term: true, translation: true, example: true } },
+          },
+        },
+      },
+    });
+    return {
+      cards: saved.map(({ flashcard }) => ({
+        id: flashcard.id,
+        ...flashcard.vocabItem,
+        kind: 'practice' as const,
+      })),
+    };
+  }
+
+  @Post('reviews/:flashcardId/practice')
+  @ApiOperation({ summary: 'Оценить свободную практику: обновить папку без изменения FSRS' })
+  @ApiParam({ name: 'flashcardId', description: 'ID своей карточки' })
+  @ApiBody({ type: RatingInputDto })
+  @ApiCreatedResponse({
+    schema: {
+      type: 'object',
+      properties: { deferred: { type: 'boolean' } },
+      required: ['deferred'],
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Неверная оценка или карточка не найдена' })
+  async practiceRating(
+    @Req() request: Request,
+    @Param('flashcardId') flashcardId: string,
+    @Body() body: { rating?: unknown },
+  ) {
+    const userId = await this.userId(request);
+    const rating = Number(body?.rating);
+    if (![Rating.Again, Rating.Hard, Rating.Good, Rating.Easy].includes(rating))
+      throw new BadRequestException('Выбери оценку ответа');
+    const card = await prisma.flashcard.findFirst({
+      where: { id: flashcardId, vocabItem: { ownerId: userId } },
+      select: { id: true },
+    });
+    if (!card) throw new BadRequestException('Карточка не найдена');
+    return updateDeferredCard(prisma, userId, flashcardId, rating);
+  }
+
   @Post('reviews/:flashcardId')
   @ApiOperation({ summary: 'Оценить ответ и пересчитать срок по FSRS' })
   @ApiParam({ name: 'flashcardId', description: 'ID карточки' })
@@ -341,6 +414,7 @@ export class StudyController {
           await tx.reviewEvent.create({
             data: { reviewStateId: saved.id, rating, reviewedAt: now, log: logJson },
           });
+          await updateDeferredCard(tx, userId, flashcardId, rating);
           return { due: next.card.due, state: next.card.state };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

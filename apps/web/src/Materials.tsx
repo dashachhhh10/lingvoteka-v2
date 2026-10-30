@@ -425,7 +425,6 @@ export function MaterialDetailPage() {
         queryClient.invalidateQueries({ queryKey: ['grammar'] }),
         queryClient.invalidateQueries({ queryKey: ['reviews'] }),
       ]);
-      if (data.vocabulary.length) navigate(`/review?materialId=${encodeURIComponent(id)}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось сохранить');
     } finally {
@@ -701,11 +700,7 @@ export function MaterialDetailPage() {
             onClick={() => void saveReview()}
             disabled={pending}
           >
-            {pending
-              ? 'Сохраняем…'
-              : vocabulary.length
-                ? 'Сохранить и открыть карточки'
-                : 'Сохранить темы'}
+            {pending ? 'Добавляем…' : 'Добавить'}
           </button>
         </>
       ) : (

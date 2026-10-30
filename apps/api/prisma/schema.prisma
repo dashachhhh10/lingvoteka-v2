@@ -22,6 +22,7 @@ model User {
   vocabItems          VocabItem[]
   grammarTopics       GrammarTopic[]
   reviewStates        ReviewState[]
+  deferredCards       DeferredCard[]
   exerciseAttempts    ExerciseAttempt[]
   telegramIdentity    TelegramIdentity?
   telegramSubmissions TelegramSubmission[]
@@ -176,14 +177,28 @@ model MaterialGrammar {
 }
 
 model Flashcard {
-  id           String        @id @default(cuid())
-  vocabItemId  String
-  vocabItem    VocabItem     @relation(fields: [vocabItemId], references: [id], onDelete: Cascade)
-  kind         String        @default("IT_TO_RU")
-  createdAt    DateTime      @default(now())
-  reviewStates ReviewState[]
+  id            String         @id @default(cuid())
+  vocabItemId   String
+  vocabItem     VocabItem      @relation(fields: [vocabItemId], references: [id], onDelete: Cascade)
+  kind          String         @default("IT_TO_RU")
+  createdAt     DateTime       @default(now())
+  reviewStates  ReviewState[]
+  deferredCards DeferredCard[]
 
   @@unique([vocabItemId, kind])
+}
+
+model DeferredCard {
+  userId      String
+  flashcardId String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcard   Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+  rating      Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  @@id([userId, flashcardId])
+  @@index([userId, updatedAt])
 }
 
 model ReviewState {
