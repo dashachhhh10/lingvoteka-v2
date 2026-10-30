@@ -22,8 +22,9 @@ export async function configureTelegramBot(apply: boolean) {
   await telegramApi('setMyShortDescription', { short_description: BOT_SHORT_DESCRIPTION });
   const commands = BOT_COMMANDS;
   await telegramApi('setMyCommands', { commands });
+  // The button beside the input opens the Mini App; typing `/` still suggests the commands.
   await telegramApi('setChatMenuButton', {
-    menu_button: { type: 'commands' },
+    menu_button: { type: 'web_app', text: 'Открыть', web_app: { url } },
   });
   await telegramApi('setWebhook', {
     url: webhook,
@@ -34,16 +35,27 @@ export async function configureTelegramBot(apply: boolean) {
     'getWebhookInfo',
     {},
   );
-  const menu = await telegramApi<{ type: string }>('getChatMenuButton', {});
+  const menu = await telegramApi<{ type: string; web_app?: { url: string } }>(
+    'getChatMenuButton',
+    {},
+  );
   const savedCommands = await telegramApi<{ command: string }[]>('getMyCommands', {});
   if (info.url !== webhook) throw new Error('Telegram webhook verification failed');
   if (
     savedCommands.map((item) => item.command).join() !== commands.map((item) => item.command).join()
   )
     throw new Error('Telegram commands verification failed');
-  // Telegram's default menu also opens commands; it can canonicalize the explicit setting.
-  if (!['commands', 'default'].includes(menu.type)) {
-    console.warn(`Telegram menu type ${menu.type === 'web_app' ? 'web_app' : 'unknown'}`);
+  // Telegram may canonicalize an origin-only menu URL by adding its trailing slash.
+  let menuUrlMatches = false;
+  try {
+    menuUrlMatches = new URL(menu.web_app?.url ?? '').href === new URL(url).href;
+  } catch {
+    // An absent/malformed URL is a failed verification, never an error to serialize.
+  }
+  if (menu.type !== 'web_app' || !menuUrlMatches) {
+    console.warn(
+      `Telegram menu type ${['commands', 'default', 'web_app'].includes(menu.type) ? menu.type : 'unknown'}`,
+    );
     throw new Error('Telegram menu verification failed');
   }
   return {

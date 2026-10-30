@@ -168,7 +168,8 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
   const originalFetch = globalThis.fetch;
   const calls: { method: string; body: Record<string, unknown> }[] = [];
   const url = 'https://lingvoteka.vercel.app';
-  let menuType = 'commands';
+  let menuType = 'web_app';
+  let menuUrl = `${url}/`;
   let webhookUrl = `${url}/api/telegram/webhook`;
   process.env.TELEGRAM_BOT_TOKEN = 'synthetic-token';
   delete process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -182,7 +183,7 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
         : method === 'getWebhookInfo'
           ? { url: webhookUrl, pending_update_count: 0 }
           : method === 'getChatMenuButton'
-            ? { type: menuType }
+            ? { type: menuType, ...(menuType === 'web_app' ? { web_app: { url: menuUrl } } : {}) }
             : method === 'getMyCommands'
               ? (calls.find((call) => call.method === 'setMyCommands')?.body.commands ?? [])
               : true;
@@ -230,8 +231,9 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
       name: 'Lingvoteka',
     });
     assert.deepEqual(calls.find(({ method }) => method === 'setChatMenuButton')?.body, {
-      menu_button: { type: 'commands' },
+      menu_button: { type: 'web_app', text: 'Открыть', web_app: { url } },
     });
+    assert.equal(result.menu, 'web_app');
     const commands = calls.find(({ method }) => method === 'setMyCommands')!.body.commands as {
       command: string;
     }[];
@@ -255,13 +257,18 @@ test('production setup verifies identity/menu/webhook, local startup does not ta
       } as unknown as Request),
       { ok: true },
     );
-    menuType = 'default';
-    assert.equal((await configureTelegramBot(true)).menu, 'default');
+    for (const type of ['commands', 'default']) {
+      menuType = type;
+      await assert.rejects(configureTelegramBot(true), {
+        message: 'Telegram menu verification failed',
+      });
+    }
     menuType = 'web_app';
+    menuUrl = `${url}/wrong`;
     await assert.rejects(configureTelegramBot(true), {
       message: 'Telegram menu verification failed',
     });
-    menuType = 'commands';
+    menuUrl = `${url}/`;
     webhookUrl = `${url}/wrong`;
     await assert.rejects(configureTelegramBot(true), {
       message: 'Telegram webhook verification failed',
